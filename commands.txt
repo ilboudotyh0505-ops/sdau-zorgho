@@ -1,0 +1,17 @@
+# Créer les migrations pour l'application
+python manage.py makemigrations sdau
+
+# Comme les tables existent déjà, marquer les migrations comme appliquées
+python manage.py migrate --fake-initial
+
+# Créer un superutilisateur
+python manage.py createsuperuser
+
+# Collecter les fichiers statiques
+python manage.py collectstatic --noinput
+
+# Lancer les tests
+python manage.py test
+
+# Démarrer le serveur
+python manage.py runserver

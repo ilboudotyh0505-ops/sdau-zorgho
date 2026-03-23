@@ -1,0 +1,1725 @@
+{% extends 'base.html' %}
+
+{% block title %}Carte SDAU - Zorgho{% endblock %}
+
+{% block body_class %}carte-page{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ============================================ */
+    /* STYLES GÉNÉRAUX */
+    /* ============================================ */
+    body, html {
+        height: 100%;
+        overflow: hidden;
+    }
+    
+    /* ============================================ */
+    /* CARTE PRINCIPALE */
+    /* ============================================ */
+    #map {
+        width: 100%;
+        height: calc(100vh - 60px);
+        position: relative;
+    }
+    
+    /* ============================================ */
+    /* SIDEBAR / TABLEAU DE BORD */
+    /* ============================================ */
+    #sidebar {
+        position: fixed;
+        top: 60px;
+        left: 0;
+        width: 350px;
+        height: calc(100vh - 60px);
+        background: white;
+        box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        z-index: 1000;
+        overflow-y: auto;
+        transition: transform 0.3s ease;
+    }
+    
+    /* Sidebar fermée */
+    #sidebar.closed {
+        transform: translateX(-350px);
+    }
+    
+    /* Bouton toggle sidebar */
+    #sidebar-toggle {
+        position: fixed;
+        top: 70px;
+        left: 350px;
+        z-index: 1001;
+        background: white;
+        border: none;
+        padding: 10px 15px;
+        cursor: pointer;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+        transition: left 0.3s ease;
+        border-radius: 0 5px 5px 0;
+    }
+    
+    #sidebar-toggle.closed {
+        left: 0;
+    }
+    
+    /* Sections de la sidebar */
+    .sidebar-section {
+        padding: 15px;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .sidebar-section h5 {
+        color: var(--couleur-primaire);
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    /* ============================================ */
+    /* CARTES STATISTIQUES */
+    /* ============================================ */
+    .stat-card {
+        background: linear-gradient(135deg, var(--couleur-primaire), var(--couleur-secondaire));
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+    }
+    
+    .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+    }
+    
+    /* ============================================ */
+    /* BARRE DE RECHERCHE FLOTTANTE AU-DESSUS CARTE */
+    /* ============================================ */
+    .search-overlay {
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1500;
+        pointer-events: none; /* Permet de cliquer à travers l'overlay */
+    }
+
+    .search-container {
+        display: flex;
+        align-items: center;
+        background: white;
+        padding: 8px 15px;
+        border-radius: 50px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        min-width: 450px;
+        pointer-events: auto; /* Réactive les clics sur le conteneur */
+        transition: all 0.3s ease;
+        position: relative;
+    }
+
+    .search-container:hover {
+        box-shadow: 0 6px 16px rgba(0,0,0,0.25);
+    }
+
+    .search-icon {
+        color: var(--couleur-primaire);
+        font-size: 18px;
+        margin-right: 10px;
+    }
+
+    .search-input {
+        flex: 1;
+        border: none;
+        outline: none;
+        font-size: 15px;
+        padding: 8px;
+        background: transparent;
+    }
+
+    .search-input::placeholder {
+        color: #999;
+    }
+
+    .search-btn,
+    .search-clear-btn {
+        background: var(--couleur-primaire);
+        color: white;
+        border: none;
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 5px;
+        transition: all 0.3s ease;
+    }
+
+    .search-btn:hover {
+        background: var(--couleur-secondaire);
+        transform: scale(1.1);
+    }
+
+    .search-clear-btn {
+        background: #e74c3c;
+    }
+
+    .search-clear-btn:hover {
+        background: #c0392b;
+        transform: scale(1.1);
+    }
+
+    /* ============================================ */
+    /* AUTOCOMPLÉTION POUR LA RECHERCHE */
+    /* ============================================ */
+    .search-autocomplete {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background: white;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        margin-top: 8px;
+        max-height: 300px;
+        overflow-y: auto;
+        display: none;
+        z-index: 2000;
+    }
+
+    .search-autocomplete.show {
+        display: block;
+    }
+
+    .autocomplete-item {
+        padding: 12px 20px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-bottom: 1px solid #f0f0f0;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .autocomplete-item:last-child {
+        border-bottom: none;
+    }
+
+    .autocomplete-item:hover {
+        background: linear-gradient(90deg, var(--couleur-primaire), var(--couleur-secondaire));
+        color: white;
+    }
+
+    .autocomplete-item i {
+        color: var(--couleur-primaire);
+        font-size: 14px;
+    }
+
+    .autocomplete-item:hover i {
+        color: white;
+    }
+
+    .autocomplete-item .zone-name {
+        font-weight: 600;
+        flex: 1;
+    }
+
+    .autocomplete-item .zone-type {
+        font-size: 12px;
+        color: #666;
+        background: #f0f0f0;
+        padding: 2px 8px;
+        border-radius: 10px;
+    }
+
+    .autocomplete-item:hover .zone-type {
+        background: rgba(255,255,255,0.3);
+        color: white;
+    }
+
+    .autocomplete-empty {
+        padding: 15px 20px;
+        text-align: center;
+        color: #999;
+        font-style: italic;
+    }
+
+    /* Responsive : sur petits écrans */
+    @media (max-width: 768px) {
+        .search-overlay {
+            left: 0;
+            right: 0;
+            transform: none;
+            padding: 0 15px;
+        }
+        
+        .search-container {
+            min-width: auto;
+            width: 100%;
+        }
+    }
+    
+    /* ============================================ */
+    /* CONTRÔLES DE LA CARTE */
+    /* ============================================ */
+    .leaflet-control-layers {
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    
+    /* ============================================ */
+    /* LÉGENDE */
+    /* ============================================ */
+    .legend {
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        margin-right: 10px;
+        border: 1px solid #ccc;
+        border-radius: 3px;
+    }
+    
+    /* ============================================ */
+    /* NORD GÉOGRAPHIQUE */
+    /* ============================================ */
+    .north-arrow {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        z-index: 2500;
+        background: white;
+        padding: 10px;
+        border-radius: 6px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        pointer-events: none;
+    }
+
+    /* Descendre les FONDS CARTO sous le nord */
+    .leaflet-top.leaflet-right .leaflet-control-layers {
+        margin-top: 80px;
+    }
+
+    /* Descendre le ZOOM sous les fonds carto */
+    .leaflet-top.leaflet-right .leaflet-control-zoom {
+        margin-top: 170px;
+    }
+    
+    .north-arrow i {
+        font-size: 24px;
+        color: var(--couleur-primaire);
+    }
+    
+    /* ============================================ */
+    /* POPUP PERSONNALISÉE */
+    /* ============================================ */
+    .custom-popup h6 {
+        color: var(--couleur-primaire);
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    
+    .custom-popup table {
+        width: 100%;
+    }
+    
+    .custom-popup td {
+        padding: 3px 5px;
+    }
+    
+    /* ============================================ */
+    /* CONTRÔLE DE TRANSPARENCE */
+    /* ============================================ */
+    .transparency-control {
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    
+    /* ============================================ */
+    /* GÉOLOCALISATION PAR COORDONNÉES */
+    /* ============================================ */
+    .coord-search-card {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        border-left: 4px solid var(--couleur-primaire);
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .coord-search-card h5 {
+        color: var(--couleur-primaire);
+        font-weight: bold;
+        margin-bottom: 15px;
+        font-size: 0.95rem;
+    }
+    
+    /* Tabs pour sélectionner le format */
+    .coord-format-tabs {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 15px;
+        background: #fff;
+        padding: 3px;
+        border-radius: 6px;
+        box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .coord-format-tab {
+        flex: 1;
+        padding: 6px 10px;
+        font-size: 0.8rem;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 4px;
+        transition: all 0.3s;
+        color: #666;
+    }
+    
+    .coord-format-tab.active {
+        background: var(--couleur-primaire);
+        color: white;
+        font-weight: bold;
+    }
+    
+    .coord-format-tab:hover:not(.active) {
+        background: rgba(0,0,0,0.05);
+    }
+    
+    /* Conteneur de format */
+    .coord-format-container {
+        display: none;
+    }
+    
+    .coord-format-container.active {
+        display: block;
+    }
+    
+    /* Groupe de coordonnées DMS */
+    .coord-input-group {
+        display: flex;
+        gap: 5px;
+        margin-bottom: 8px;
+        align-items: flex-end;
+    }
+    
+    .coord-field {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .coord-field label {
+        font-size: 0.7rem;
+        color: #666;
+        margin-bottom: 2px;
+        display: block;
+    }
+    
+    .coord-field input {
+        padding: 6px 8px;
+        font-size: 0.85rem;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        width: 100%;
+    }
+    
+    .coord-field select {
+        padding: 6px 8px;
+        font-size: 0.85rem;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        background: white;
+        cursor: pointer;
+    }
+    
+    /* Groupe pour degrés décimaux */
+    .decimal-input-group {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+    
+    .decimal-input-group .coord-field {
+        flex: 1;
+    }
+    
+    /* Boutons d'action */
+    .coord-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+    }
+    
+    .coord-buttons button {
+        flex: 1;
+        padding: 8px;
+        font-size: 0.85rem;
+    }
+    
+    /* Bouton GPS */
+    .btn-gps {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+        border: none;
+    }
+    
+    .btn-gps:hover {
+        background: linear-gradient(135deg, #45a049, #3d8b40);
+    }
+    
+    /* Résultat de la recherche */
+    .point-info-result {
+        margin-top: 15px;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        display: none;
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .point-info-result.success {
+        background-color: #d4edda;
+        border: 1px solid #c3e6cb;
+        color: #155724;
+    }
+    
+    .point-info-result.error {
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        color: #721c24;
+    }
+    
+    .point-info-result.not-found {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        color: #856404;
+    }
+    
+    .point-info-result strong {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 0.9rem;
+    }
+    
+    .point-info-result table {
+        width: 100%;
+        margin-top: 8px;
+    }
+    
+    .point-info-result td {
+        padding: 4px;
+        font-size: 0.8rem;
+    }
+    
+    /* Marqueur personnalisé sur la carte */
+    .custom-marker {
+        background: transparent;
+        border: none;
+    }
+    
+    .custom-marker i {
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        animation: bounce 2s infinite;
+    }
+    
+    @keyframes bounce {
+        0%, 100% {
+            transform: translateY(0);
+        }
+        50% {
+            transform: translateY(-10px);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block header %}
+<nav class="header-dguvt">
+    <div class="container-fluid d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-map-marked-alt fa-2x me-3"></i>
+            <div>
+                <h4 class="mb-0">SDAU Zorgho</h4>
+                <small>Géolocalisation des zones d'aménagement</small>
+            </div>
+        </div>
+        <div class="d-flex align-items-center">
+            <span class="me-3">
+                <i class="fas fa-user me-2"></i>
+                <span id="user-name">Chargement...</span>
+            </span>
+            <button class="btn btn-light btn-sm" onclick="logout()">
+                <i class="fas fa-sign-out-alt me-1"></i>
+                Déconnexion
+            </button>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- ============================================ -->
+<!-- BOUTON TOGGLE SIDEBAR -->
+<!-- ============================================ -->
+<button id="sidebar-toggle" onclick="toggleSidebar()">
+    <i class="fas fa-bars"></i>
+</button>
+
+<!-- ============================================ -->
+<!-- BARRE DE RECHERCHE FLOTTANTE AU-DESSUS CARTE -->
+<!-- ============================================ -->
+<div class="search-overlay">
+    <div class="search-container">
+        <!-- Icône de recherche -->
+        <i class="fas fa-search search-icon"></i>
+        
+        <!-- Champ de saisie avec autocomplétion -->
+        <input 
+            type="text" 
+            id="search-zone" 
+            placeholder="Rechercher une zone par nom..." 
+            class="search-input"
+            autocomplete="off"
+            oninput="handleSearchInput()"
+            onkeypress="handleSearchKeypress(event)"
+        >
+        
+        <!-- Bouton de recherche -->
+        <button onclick="applyFilters()" class="search-btn" title="Rechercher">
+            <i class="fas fa-arrow-right"></i>
+        </button>
+        
+        <!-- Bouton d'effacement -->
+        <button onclick="resetSearchOnly()" class="search-clear-btn" title="Effacer">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <!-- Liste d'autocomplétion -->
+        <div id="search-autocomplete" class="search-autocomplete"></div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- SIDEBAR / TABLEAU DE BORD -->
+<!-- ============================================ -->
+<div id="sidebar">
+
+    <!-- ==================== -->
+    <!-- GÉOLOCALISATION PAR COORDONNÉES -->
+    <!-- ==================== -->
+    <div class="sidebar-section">
+        <h5><i class="fas fa-map-pin me-2"></i>Géolocaliser un point</h5>
+        
+        <div class="coord-search-card">
+            <!-- Tabs pour choisir entre DMS et Décimal -->
+            <div class="coord-format-tabs">
+                <button class="coord-format-tab active" onclick="switchCoordFormat('dms')" id="tab-dms">
+                    DMS
+                </button>
+                <button class="coord-format-tab" onclick="switchCoordFormat('decimal')" id="tab-decimal">
+                    Décimal
+                </button>
+            </div>
+
+            <!-- Format DMS (Degrés Minutes Secondes) -->
+            <div id="format-dms" class="coord-format-container active">
+                <!-- Longitude -->
+                <div class="mb-2">
+                    <label>Longitude (X)</label>
+                    <input type="number" id="lon-deg-dms" placeholder="0" min="0" max="180" value="0">
+                    <input type="number" id="lon-min-dms" placeholder="0" min="0" max="59" value="37">
+                    <input type="number" id="lon-sec-dms" placeholder="0" min="0" max="59" value="0">
+                    <select id="lon-dir-dms">
+                        <option value="W" selected>W</option>
+                        <option value="E">E</option>
+                    </select>
+                </div>
+                
+                <!-- Latitude -->
+                <div class="mb-2">
+                    <label>Latitude (Y)</label>
+                    <input type="number" id="lat-deg-dms" placeholder="0" min="0" max="90" value="12">
+                    <input type="number" id="lat-min-dms" placeholder="0" min="0" max="59" value="15">
+                    <input type="number" id="lat-sec-dms" placeholder="0" min="0" max="59" value="0">
+                    <select id="lat-dir-dms">
+                        <option value="N" selected>N</option>
+                        <option value="S">S</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Format Décimal -->
+            <div id="format-decimal" class="coord-format-container">
+                <div class="decimal-input-group">
+                    <div class="coord-field">
+                        <label>Longitude (X)</label>
+                        <input type="number" id="lon-decimal" value="-0.6167" step="0.000001">
+                    </div>
+                    <div class="coord-field">
+                        <label>Latitude (Y)</label>
+                        <input type="number" id="lat-decimal" value="12.2500" step="0.000001">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Boutons d'action -->
+            <div class="coord-buttons">
+                <button class="btn btn-primary btn-sm" onclick="localiserPoint()">
+                    <i class="fas fa-map-marker-alt me-1"></i>Localiser
+                </button>
+                <button class="btn btn-success btn-sm btn-gps" onclick="utiliserMaPosition()">
+                    <i class="fas fa-crosshairs me-1"></i>GPS
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="effacerCoordonnees()">
+                    <i class="fas fa-eraser me-1"></i>Effacer
+                </button>
+            </div>
+
+            <!-- Résultat de la géolocalisation -->
+            <div id="point-info-result" class="point-info-result"></div>
+        </div>
+    </div>
+
+    <!-- ==================== -->
+    <!-- STATISTIQUES -->
+    <!-- ==================== -->
+    <div class="sidebar-section">
+        <h5><i class="fas fa-chart-bar me-2"></i>Statistiques</h5>
+        
+        <!-- Nombre total d'enttités -->
+        <div class="stat-card">
+            <div class="stat-label">Nombre total d'entités</div>
+            <div class="stat-number" id="total-zones">-</div>
+        </div>
+        
+        <!-- Superficie totale -->
+        <div class="stat-card">
+            <div class="stat-label">Superficie totale</div>
+            <div class="stat-number" id="superficie-totale">-</div>
+        </div>
+    </div>
+
+    <!-- ==================== -->
+    <!-- FILTRES AVANCÉS -->
+    <!-- ==================== -->
+    <div class="sidebar-section">
+        <h5><i class="fas fa-filter me-2"></i>Filtres</h5>
+        
+        <!-- Filtre par secteur -->
+        <div class="mb-2">
+            <label class="form-label"><small><i class="fas fa-layer-group me-1"></i>Secteur</small></label>
+            <select id="filter-secteur" class="form-select form-select-sm">
+                <option value="">Tous les secteurs</option>
+            </select>
+        </div>
+        
+        <!-- Filtre par type de zone -->
+        <div class="mb-2">
+            <label class="form-label"><small><i class="fas fa-tag me-1"></i>Type de zone</small></label>
+            <select id="filter-type" class="form-select form-select-sm">
+                <option value="">Tous les types</option>
+            </select>
+        </div>
+        
+        <!-- Filtre par statut -->
+        <div class="mb-2">
+            <label class="form-label"><small><i class="fas fa-check-circle me-1"></i>Statut</small></label>
+            <select id="filter-statut" class="form-select form-select-sm">
+                <option value="">Tous les statuts</option>
+            </select>
+        </div>
+        
+        <!-- Boutons d'action -->
+        <div class="d-flex gap-2 mt-3">
+            <button class="btn btn-primary btn-sm flex-fill" onclick="applyFilters()">
+                <i class="fas fa-check me-1"></i>Appliquer
+            </button>
+            <button class="btn btn-secondary btn-sm flex-fill" onclick="resetFilters()">
+                <i class="fas fa-redo me-1"></i>Réinitialiser
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== -->
+    <!-- CONTRÔLE DE TRANSPARENCE -->
+    <!-- ==================== -->
+    <div class="sidebar-section">
+        <h5><i class="fas fa-adjust me-2"></i>Transparence</h5>
+        <input 
+            type="range" 
+            id="opacity-slider" 
+            min="0" 
+            max="100" 
+            value="70" 
+            oninput="updateOpacity(this.value)"
+            class="form-range"
+        >
+        <span id="opacity-value">70</span>%
+    </div>
+
+    <!-- ==================== -->
+    <!-- LÉGENDE -->
+    <!-- ==================== -->
+    <div class="sidebar-section">
+        <h5><i class="fas fa-list me-2"></i>Légende</h5>
+        <div id="legend-container"></div>
+    </div>
+</div>
+
+<!-- ============================================ -->
+<!-- CARTE PRINCIPALE -->
+<!-- ============================================ -->
+<div id="map">
+    <!-- Nord géographique -->
+    <div class="north-arrow">
+        <i class="fas fa-arrow-up"></i>
+        <div><small><strong>N</strong></small></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block footer %}
+<!-- Pas de footer sur la page carte -->
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ============================================
+// VARIABLES GLOBALES
+// ============================================
+let map;                    // Instance de la carte Leaflet
+let zonesLayer;             // Couche des zones d'aménagement
+let secteursLayer;          // Couche des secteurs
+let currentData = [];       // Données actuelles des zones
+let pointMarker = null;     // Marqueur de point géolocalisé
+let currentCoordFormat = 'dms';  // Format de coordonnées (dms ou decimal)
+let currentOpacity = 0.7;   // Opacité actuelle des zones
+
+// ============================================
+// FONCTION : Récupérer le token CSRF
+// ============================================
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// ============================================
+// FONCTION : Toggle Sidebar (Ouvrir/Fermer)
+// ============================================
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.getElementById('sidebar-toggle');
+    
+    if (sidebar && toggle) {
+        sidebar.classList.toggle('closed');
+        toggle.classList.toggle('closed');
+    }
+}
+
+// ============================================
+// FONCTION : Charger le nom d'utilisateur
+// ============================================
+async function loadUserName() {
+    try {
+        const response = await fetch('/api/utilisateurs/me/', {
+            credentials: "same-origin",
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            const user = await response.json();
+            const userNameElement = document.getElementById('user-name');
+            if (userNameElement) {
+                userNameElement.textContent = `${user.prenom || ''} ${user.nom || ''}`.trim() || user.email || 'Utilisateur';
+            }
+        } else {
+            console.warn('Impossible de charger les infos utilisateur');
+            const userNameElement = document.getElementById('user-name');
+            if (userNameElement) {
+                userNameElement.textContent = 'Utilisateur';
+            }
+        }
+    } catch (error) {
+        console.error('❌ Erreur lors du chargement de l\'utilisateur:', error);
+        const userNameElement = document.getElementById('user-name');
+        if (userNameElement) {
+            userNameElement.textContent = 'Utilisateur';
+        }
+    }
+}
+
+// ============================================
+// FONCTION : Déconnexion
+// ============================================
+async function logout() {
+    try {
+        const response = await fetch('/api/auth/logout/', {
+            method: 'POST',
+            credentials: "same-origin",
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        });
+        
+        if (response.ok) {
+            window.location.href = '/login/';
+        }
+    } catch (error) {
+        console.error('Erreur lors de la déconnexion:', error);
+        // Forcer la redirection même en cas d'erreur
+        window.location.href = '/login/';
+    }
+}
+
+// ============================================
+// FONCTION : Initialisation de la carte Leaflet
+// ============================================
+function initMap() {
+    try {
+        // Créer la carte centrée sur Zorgho (Burkina Faso)
+        map = L.map('map', {
+            center: [12.2500, -0.6167],  // Coordonnées de Zorgho
+            zoom: 13,
+            zoomControl: false
+        });
+        
+        // Définir les différents fonds de carte
+        const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        });
+        
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri',
+            maxZoom: 19
+        });
+        
+        const cartoDBLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© CartoDB',
+            maxZoom: 19
+        });
+        
+        // Ajouter OSM par défaut
+        osmLayer.addTo(map);
+        
+        // Ajouter le contrôle de zoom en haut à droite
+        L.control.zoom({
+            position: 'topright'
+        }).addTo(map);
+
+        // Contrôle des couches (permet de changer de fond de carte)
+        const baseMaps = {
+            "OpenStreetMap": osmLayer,
+            "Satellite": satelliteLayer,
+            "CartoDB Light": cartoDBLayer
+        };
+        
+        L.control.layers(baseMaps).addTo(map);
+        
+        // Ajouter une échelle métrique
+        L.control.scale({imperial: false, metric: true}).addTo(map);
+        
+        // Initialiser les couches pour les zones et secteurs
+        zonesLayer = L.geoJSON(null, {
+            style: styleZone,
+            onEachFeature: onEachZone
+        }).addTo(map);
+        
+        secteursLayer = L.geoJSON(null, {
+            style: {
+                color: '#000000',
+                weight: 2,
+                fillOpacity: 0,
+                dashArray: '5, 5'
+            }
+        }).addTo(map);
+        
+        console.log('✅ Carte Leaflet initialisée avec succès');
+        
+    } catch (error) {
+        console.error('❌ Erreur lors de l\'initialisation de la carte:', error);
+        alert('Erreur lors de l\'initialisation de la carte. Vérifiez que Leaflet est bien chargé.');
+    }
+}
+
+// ============================================
+// FONCTION : Définir le style des zones
+// ============================================
+function styleZone(feature) {
+    return {
+        fillColor: feature.properties.couleur || '#3388ff',
+        weight: 1,
+        opacity: 1,
+        color: '#666',
+        fillOpacity: currentOpacity
+    };
+}
+
+// ============================================
+// FONCTION : Actions sur chaque zone (popup, survol)
+// ============================================
+function onEachZone(feature, layer) {
+    const props = feature.properties;
+    
+    // Créer le contenu de la popup
+    const popupContent = `
+        <div class="custom-popup">
+            <h6>${props.zone_sdau || 'Zone inconnue'}</h6>
+            <table>
+                <tr>
+                    <td><strong>Secteur:</strong></td>
+                    <td>${props.noms_secteurs && props.noms_secteurs.length > 0 ? props.secteurs.map(s => s.nom_secteur).join(', ') : 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td><strong>Type:</strong></td>
+                    <td>${props.type_zone || 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td><strong>Statut:</strong></td>
+                    <td>${props.statut_amenagement || 'N/A'}</td>
+                </tr>
+                <tr>
+                    <td><strong>Superficie:</strong></td>
+                    <td>${props.aire_ha || 'N/A'} ha</td>
+                </tr>
+            </table>
+        </div>
+    `;
+    
+    // Lier la popup à la zone
+    layer.bindPopup(popupContent);
+    
+    // Effet de survol : mettre en évidence la zone
+    layer.on('mouseover', function(e) {
+        this.setStyle({
+            weight: 3,
+            color: '#000'
+        });
+    });
+    
+    // Retirer l'effet de survol
+    layer.on('mouseout', function(e) {
+        zonesLayer.resetStyle(this);
+    });
+}
+
+// ============================================
+// FONCTION : Charger les données depuis l'API
+// ============================================
+async function loadData() {
+    try {
+        console.log('🔄 Chargement des données...');
+        
+        // Charger les zones d'aménagement
+        const zonesResponse = await fetch('/api/zones/geojson/', {
+            credentials: "same-origin",
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!zonesResponse.ok) {
+            throw new Error(`Erreur HTTP ${zonesResponse.status}: ${zonesResponse.statusText}`);
+        }
+
+        const zonesData = await zonesResponse.json();
+        console.log('📦 Données zones reçues:', zonesData);
+        
+        // Stocker les données actuelles
+        currentData = zonesData.features || [];
+        
+        // Ajouter les zones à la carte
+        zonesLayer.clearLayers();
+        if (zonesData.type === 'FeatureCollection' && zonesData.features && zonesData.features.length > 0) {
+            zonesLayer.addData(zonesData);
+            console.log(`✅ ${zonesData.features.length} zones chargées`);
+        } else {
+            console.warn('⚠️ Aucune zone trouvée dans les données');
+        }
+        
+        // Charger les secteurs (non bloquant)
+        try {
+            const secteursResponse = await fetch('/api/secteurs/', {
+                credentials: "same-origin",
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (secteursResponse.ok) {
+                const secteursData = await secteursResponse.json();
+                console.log('📦 Données secteurs reçues:', secteursData);
+                
+                secteursLayer.clearLayers();
+                
+                if (secteursData.type === 'FeatureCollection') {
+                    secteursLayer.addData(secteursData);
+                    console.log('✅ Secteurs chargés');
+                }
+            }
+        } catch (secteurError) {
+            console.warn('⚠️ Erreur chargement secteurs (non bloquant):', secteurError);
+        }
+        
+        // Zoomer sur l'étendue des données
+        if (currentData.length > 0 && zonesLayer.getBounds && zonesLayer.getBounds().isValid()) {
+            map.fitBounds(zonesLayer.getBounds(), { padding: [50, 50] });
+        } else {
+            console.log('📍 Centrage par défaut sur Zorgho');
+            map.setView([12.2500, -0.6167], 13);
+        }
+        
+        // Charger les autres composants
+        await loadStatistics();
+        await loadFilterOptions();
+        createLegend(currentData);
+        
+        console.log('✅ Chargement terminé avec succès');
+        
+    } catch (error) {
+        console.error('❌ Erreur lors du chargement des données:', error);
+        alert(`Erreur de chargement:\n${error.message}\n\nVérifiez que :\n1. Le serveur Django est démarré\n2. Des données existent dans la base\n3. Vous êtes bien connecté`);
+        
+        // Centrer sur Zorgho même en cas d'erreur
+        map.setView([12.2500, -0.6167], 13);
+    }
+}
+
+// ============================================
+// FONCTION : Charger les statistiques
+// ============================================
+async function loadStatistics() {
+    try {
+        const response = await fetch('/api/zones/statistiques/', {
+            credentials: "same-origin",
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.warn('Statistiques non disponibles');
+            document.getElementById('total-zones').textContent = '0';
+            document.getElementById('superficie-totale').textContent = '0 ha';
+            return;
+        }
+
+        const stats = await response.json();
+        
+        // Mettre à jour l'affichage des statistiques
+        document.getElementById('total-zones').textContent = stats.total_zones || 0;
+        document.getElementById('superficie-totale').textContent = 
+            (parseFloat(stats.superficie_totale || 0).toFixed(2)) + ' ha';
+        
+    } catch (error) {
+        console.error('❌ Erreur statistiques:', error);
+        document.getElementById('total-zones').textContent = 'N/A';
+        document.getElementById('superficie-totale').textContent = 'N/A';
+    }
+}
+
+// ============================================
+// FONCTION : Charger les options de filtres
+// ============================================
+async function loadFilterOptions() {
+    try {
+        const response = await fetch('/api/zones/choix/', {
+            credentials: "same-origin",
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            console.warn('Options non disponibles');
+            return;
+        }
+
+        const options = await response.json();
+        
+        // Remplir le select des secteurs
+        const secteurSelect = document.getElementById('filter-secteur');
+        if (secteurSelect) {
+            secteurSelect.innerHTML = '<option value="">Tous les secteurs</option>';
+            
+            if (options.secteurs && Array.isArray(options.secteurs)) {
+                options.secteurs.forEach(secteur => {
+                    const option = document.createElement('option');
+                    if (typeof secteur === 'object') {
+                        option.value = secteur.id || secteur.nom;
+                        option.textContent = secteur.nom;
+                    } else {
+                        option.value = secteur;
+                        option.textContent = secteur;
+                    }
+                    secteurSelect.appendChild(option);
+                });
+            }
+        }
+        
+        // Remplir le select des types de zone
+        const typeSelect = document.getElementById('filter-type');
+        if (typeSelect) {
+            typeSelect.innerHTML = '<option value="">Tous les types</option>';
+            
+            if (options.types_zone && Array.isArray(options.types_zone)) {
+                options.types_zone.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type;
+                    option.textContent = type;
+                    typeSelect.appendChild(option);
+                });
+            }
+        }
+        
+        // Remplir le select des statuts
+        const statutSelect = document.getElementById('filter-statut');
+        if (statutSelect) {
+            statutSelect.innerHTML = '<option value="">Tous les statuts</option>';
+            
+            if (options.statuts_amenagement && Array.isArray(options.statuts_amenagement)) {
+                options.statuts_amenagement.forEach(statut => {
+                    const option = document.createElement('option');
+                    option.value = statut;
+                    option.textContent = statut;
+                    statutSelect.appendChild(option);
+                });
+            }
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur options:', error);
+    }
+}
+
+// ============================================
+// FONCTION : Créer la légende dynamique
+// ============================================
+function createLegend(features) {
+    const legendContainer = document.getElementById('legend-container');
+    if (!legendContainer) return;
+    
+    legendContainer.innerHTML = '';
+    
+    if (!features || features.length === 0) {
+        legendContainer.innerHTML = '<small class="text-muted">Aucune donnée</small>';
+        return;
+    }
+    
+    // Extraire les types uniques avec leurs couleurs
+    const types = {};
+    features.forEach(feature => {
+        const type = feature.properties.type_zone;
+        const couleur = feature.properties.couleur || '#3388ff';
+        if (!types[type]) {
+            types[type] = couleur;
+        }
+    });
+    
+    // Créer les éléments de légende
+    for (const [type, couleur] of Object.entries(types)) {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `
+            <div class="legend-color" style="background-color: ${couleur};"></div>
+            <small>${type}</small>
+        `;
+        legendContainer.appendChild(item);
+    }
+}
+
+// ============================================
+// FONCTION : Gérer la saisie dans la recherche (Autocomplétion)
+// ============================================
+function handleSearchInput() {
+    const searchInput = document.getElementById('search-zone');
+    const autocompleteDiv = document.getElementById('search-autocomplete');
+    const searchText = searchInput.value.trim().toLowerCase();
+    
+    // Si la saisie est vide, masquer l'autocomplétion
+    if (searchText.length === 0) {
+        autocompleteDiv.classList.remove('show');
+        autocompleteDiv.innerHTML = '';
+        return;
+    }
+    
+    // Filtrer les zones correspondantes
+    const matchingZones = currentData.filter(feature => {
+        const zoneName = (feature.properties.zone_sdau || '').toLowerCase();
+        return zoneName.includes(searchText);
+    });
+    
+    // Limiter à 8 résultats pour ne pas surcharger l'affichage
+    const limitedResults = matchingZones.slice(0, 8);
+    
+    // Construire la liste d'autocomplétion
+    if (limitedResults.length > 0) {
+        autocompleteDiv.innerHTML = '';
+        
+        limitedResults.forEach(feature => {
+            const props = feature.properties;
+            const item = document.createElement('div');
+            item.className = 'autocomplete-item';
+            item.innerHTML = `
+                <i class="fas fa-map-marker-alt"></i>
+                <span class="zone-name">${props.zone_sdau}</span>
+                <span class="zone-type">${props.type_zone || 'N/A'}</span>
+            `;
+            
+            // Clic sur un élément : sélectionner la zone
+            item.onclick = function() {
+                selectZoneFromAutocomplete(feature);
+            };
+            
+            autocompleteDiv.appendChild(item);
+        });
+        
+        autocompleteDiv.classList.add('show');
+    } else {
+        // Aucun résultat trouvé
+        autocompleteDiv.innerHTML = `
+            <div class="autocomplete-empty">
+                <i class="fas fa-info-circle me-2"></i>Aucune zone trouvée
+            </div>
+        `;
+        autocompleteDiv.classList.add('show');
+    }
+}
+
+// ============================================
+// FONCTION : Sélectionner une zone depuis l'autocomplétion
+// ============================================
+function selectZoneFromAutocomplete(feature) {
+    const searchInput = document.getElementById('search-zone');
+    const autocompleteDiv = document.getElementById('search-autocomplete');
+    
+    // Remplir le champ de recherche avec le nom de la zone
+    searchInput.value = feature.properties.zone_sdau;
+    
+    // Masquer l'autocomplétion
+    autocompleteDiv.classList.remove('show');
+    
+    // Appliquer le filtre pour afficher uniquement cette zone
+    applyFilters();
+    
+    // Zoomer sur la zone sélectionnée
+    const layer = zonesLayer.getLayers().find(l => {
+        return l.feature.properties.zone_sdau === feature.properties.zone_sdau;
+    });
+    
+    if (layer) {
+        // Zoomer sur la zone
+        map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+        
+        // Ouvrir la popup
+        layer.openPopup();
+        
+        // Animer la zone (highlight temporaire)
+        layer.setStyle({
+            weight: 3,
+            color: '#FF0000'
+        });
+        
+        setTimeout(() => {
+            zonesLayer.resetStyle(layer);
+        }, 2000);
+    }
+}
+
+// ============================================
+// FONCTION : Gérer la touche Entrée dans la recherche
+// ============================================
+function handleSearchKeypress(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        applyFilters();
+        
+        // Masquer l'autocomplétion
+        const autocompleteDiv = document.getElementById('search-autocomplete');
+        autocompleteDiv.classList.remove('show');
+    }
+}
+
+// ============================================
+// FONCTION : Appliquer les filtres
+// ============================================
+function applyFilters() {
+    const searchText = document.getElementById('search-zone').value.toLowerCase();
+    const secteur = document.getElementById('filter-secteur').value;
+    const type = document.getElementById('filter-type').value;
+    const statut = document.getElementById('filter-statut').value;
+    
+    // Filtrer les données selon les critères
+    const filteredData = currentData.filter(feature => {
+        const props = feature.properties;
+        
+        // Filtre par nom de zone
+        if (searchText && !props.zone_sdau.toLowerCase().includes(searchText)) {
+            return false;
+        }
+        
+        // Filtre par secteur
+        if (secteur) {
+            if (!props.secteurs || props.secteurs.length === 0) {
+                return false;
+            }
+
+            const secteurMatch = props.secteurs.some(s =>
+                String(typeof s === 'object' ? s.id_secteur : s) === String(secteur)
+                
+            );
+
+            if (!secteurMatch) {
+                return false;
+            }
+        }
+        
+        // Filtre par type de zone
+        if (type && props.type_zone !== type) {
+            return false;
+        }
+        
+        // Filtre par statut
+        if (statut && props.statut_amenagement !== statut) {
+            return false;
+        }
+        
+        return true;
+    });
+    
+    // Mettre à jour la couche avec les données filtrées
+    zonesLayer.clearLayers();
+    zonesLayer.addData({
+        type: 'FeatureCollection',
+        features: filteredData
+    });
+    
+    // Zoomer sur les résultats filtrés
+    if (filteredData.length > 0 && zonesLayer.getBounds().isValid()) {
+        map.fitBounds(zonesLayer.getBounds());
+    }
+    
+    // Fermer l'autocomplétion
+    const autocompleteDiv = document.getElementById('search-autocomplete');
+    autocompleteDiv.classList.remove('show');
+}
+
+// ============================================
+// FONCTION : Réinitialiser uniquement la recherche
+// ============================================
+function resetSearchOnly() {
+    // Vider le champ de recherche
+    document.getElementById('search-zone').value = '';
+    
+    // Masquer l'autocomplétion
+    const autocompleteDiv = document.getElementById('search-autocomplete');
+    autocompleteDiv.classList.remove('show');
+    
+    // Réappliquer les filtres (sans la recherche)
+    applyFilters();
+}
+
+// ============================================
+// FONCTION : Réinitialiser tous les filtres
+// ============================================
+function resetFilters() {
+    // Réinitialiser tous les champs
+    document.getElementById('search-zone').value = '';
+    document.getElementById('filter-secteur').value = '';
+    document.getElementById('filter-type').value = '';
+    document.getElementById('filter-statut').value = '';
+    
+    // Masquer l'autocomplétion
+    const autocompleteDiv = document.getElementById('search-autocomplete');
+    autocompleteDiv.classList.remove('show');
+    
+    // Recharger toutes les zones
+    zonesLayer.clearLayers();
+    zonesLayer.addData({
+        type: 'FeatureCollection',
+        features: currentData
+    });
+    
+    // Zoomer sur l'étendue totale
+    if (currentData.length > 0 && zonesLayer.getBounds().isValid()) {
+        map.fitBounds(zonesLayer.getBounds());
+    }
+}
+
+// ============================================
+// FONCTION : Mettre à jour l'opacité des zones
+// ============================================
+function updateOpacity(value) {
+    // Mettre à jour la variable globale
+    currentOpacity = value / 100;
+    
+    // Afficher la valeur
+    document.getElementById('opacity-value').textContent = value;
+
+    // Appliquer la nouvelle opacité à toutes les zones
+    zonesLayer.setStyle(function(feature) {
+        return {
+            fillOpacity: currentOpacity
+        };
+    });
+}
+
+// ============================================
+// FONCTIONS DE GÉOLOCALISATION PAR COORDONNÉES
+// ============================================
+
+// Changer le format de coordonnées (DMS ou Décimal)
+function switchCoordFormat(format) {
+    currentCoordFormat = format;
+    
+    // Mettre à jour les tabs
+    document.querySelectorAll('.coord-format-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    document.getElementById(`tab-${format}`).classList.add('active');
+    
+    // Afficher le bon conteneur
+    document.querySelectorAll('.coord-format-container').forEach(container => {
+        container.classList.remove('active');
+    });
+    document.getElementById(`format-${format}`).classList.add('active');
+}
+
+// Convertir DMS en décimal
+function dmsToDecimal(deg, min, sec, direction) {
+    deg = Math.abs(parseFloat(deg) || 0);
+    min = parseFloat(min) || 0;
+    sec = parseFloat(sec) || 0;
+    
+    // Validation
+    if (min >= 60 || sec >= 60) {
+        throw new Error('Minutes et secondes doivent être < 60');
+    }
+    
+    // Calcul décimal
+    let decimal = deg + (min / 60) + (sec / 3600);
+    
+    // Appliquer la direction (Sud et Ouest sont négatifs)
+    if (direction === 'S' || direction === 'W') {
+        decimal = -decimal;
+    }
+    
+    return decimal;
+}
+
+// Localiser un point sur la carte
+async function localiserPoint() {
+    try {
+        let longitude, latitude;
+        
+        // Récupérer les coordonnées selon le format choisi
+        if (currentCoordFormat === 'dms') {
+            const lonDeg = document.getElementById('lon-deg-dms').value;
+            const lonMin = document.getElementById('lon-min-dms').value;
+            const lonSec = document.getElementById('lon-sec-dms').value;
+            const lonDir = document.getElementById('lon-dir-dms').value;
+            
+            const latDeg = document.getElementById('lat-deg-dms').value;
+            const latMin = document.getElementById('lat-min-dms').value;
+            const latSec = document.getElementById('lat-sec-dms').value;
+            const latDir = document.getElementById('lat-dir-dms').value;
+            
+            longitude = dmsToDecimal(lonDeg, lonMin, lonSec, lonDir);
+            latitude = dmsToDecimal(latDeg, latMin, latSec, latDir);
+        } else {
+            longitude = parseFloat(document.getElementById('lon-decimal').value);
+            latitude = parseFloat(document.getElementById('lat-decimal').value);
+        }
+        
+        // Validation
+        if (isNaN(longitude) || isNaN(latitude)) {
+            alert('❌ Coordonnées invalides');
+            return;
+        }
+        
+        // Appeler l'API pour vérifier si le point est dans une zone
+        const response = await fetch('/api/zones/point_info/', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ longitude, latitude })
+        });
+        
+        const data = await response.json();
+        
+        // Afficher le résultat
+        if (data.zone_trouvee) {
+            alert(`✅ Zone trouvée: ${data.zone.zone_sdau}`);
+            placerMarqueur(latitude, longitude, data.zone);
+        } else {
+            alert('⚠️ Aucune zone trouvée à ces coordonnées');
+            placerMarqueur(latitude, longitude, null);
+        }
+        
+    } catch (error) {
+        console.error('❌ Erreur localisation:', error);
+        alert('❌ Erreur lors de la localisation');
+    }
+}
+
+// Placer un marqueur sur la carte
+function placerMarqueur(lat, lon, zoneData) {
+    // Supprimer l'ancien marqueur s'il existe
+    if (pointMarker) {
+        map.removeLayer(pointMarker);
+    }
+    
+    // Créer un nouveau marqueur
+    pointMarker = L.marker([lat, lon], {
+        icon: L.divIcon({
+            className: 'custom-marker',
+            html: '<i class="fas fa-map-marker-alt fa-3x" style="color: #FF4500;"></i>',
+            iconSize: [30, 40],
+            iconAnchor: [15, 40]
+        })
+    }).addTo(map);
+    
+    // Créer le contenu de la popup
+    let popup = `<strong>📍 Position</strong><br>Lat: ${lat.toFixed(6)}<br>Lon: ${lon.toFixed(6)}`;
+    if (zoneData) {
+        popup += `<br><br><strong>🏘️ ${zoneData.zone_sdau}</strong>`;
+    }
+    
+    // Afficher la popup et zoomer
+    pointMarker.bindPopup(popup).openPopup();
+    map.flyTo([lat, lon], 16);
+}
+
+// Effacer les coordonnées et le marqueur
+function effacerCoordonnees() {
+    // Réinitialiser les champs DMS
+    document.getElementById('lon-deg-dms').value = '0';
+    document.getElementById('lon-min-dms').value = '37';
+    document.getElementById('lon-sec-dms').value = '0';
+    document.getElementById('lat-deg-dms').value = '12';
+    document.getElementById('lat-min-dms').value = '15';
+    document.getElementById('lat-sec-dms').value = '0';
+    
+    // Réinitialiser les champs décimaux
+    document.getElementById('lon-decimal').value = '-0.6167';
+    document.getElementById('lat-decimal').value = '12.2500';
+    
+    // Supprimer le marqueur
+    if (pointMarker) {
+        map.removeLayer(pointMarker);
+        pointMarker = null;
+    }
+    
+    // Recentrer sur Zorgho
+    map.flyTo([12.2500, -0.6167], 13);
+}
+
+// Utiliser la position GPS de l'utilisateur
+function utiliserMaPosition() {
+    if (!navigator.geolocation) {
+        alert('❌ Géolocalisation non supportée par votre navigateur');
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            // Basculer en mode décimal
+            switchCoordFormat('decimal');
+            
+            // Remplir les champs
+            document.getElementById('lon-decimal').value = position.coords.longitude.toFixed(6);
+            document.getElementById('lat-decimal').value = position.coords.latitude.toFixed(6);
+            
+            // Localiser le point
+            localiserPoint();
+        },
+        error => {
+            alert(`❌ Erreur GPS: ${error.message}`);
+        }
+    );
+}
+
+// ============================================
+// INITIALISATION AU CHARGEMENT DE LA PAGE
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Initialisation SDAU Zorgho...');
+    
+    // Vérifier que Leaflet est chargé
+    if (typeof L === 'undefined') {
+        console.error('❌ Leaflet n\'est pas chargé !');
+        alert('Erreur: Bibliothèque cartographique non chargée. Vérifiez votre connexion internet.');
+        return;
+    }
+    
+    try {
+        // Initialiser la carte
+        initMap();
+        
+        // Charger le nom d'utilisateur
+        loadUserName();
+        
+        // Charger toutes les données
+        loadData();
+        
+        // Fermer l'autocomplétion si on clique ailleurs
+        document.addEventListener('click', function(e) {
+            const searchContainer = document.querySelector('.search-container');
+            const autocompleteDiv = document.getElementById('search-autocomplete');
+            
+            if (searchContainer && !searchContainer.contains(e.target)) {
+                autocompleteDiv.classList.remove('show');
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Erreur initialisation:', error);
+        alert('Erreur lors de l\'initialisation. Consultez la console (F12).');
+    }
+});
+</script>
+{% endblock %}

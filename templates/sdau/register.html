@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+
+{% block title %}Inscription - SDAU Zorgho{% endblock %}
+
+{% block body_class %}auth-page d-flex flex-column{% endblock %}
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
+    <div class="col-md-6">
+        <div class="card card-custom">
+            <div class="card-body p-5">
+                <!-- Logo et titre -->
+                <div class="text-center mb-4">
+                    <div class="mb-3">
+                        <i class="fas fa-user-plus fa-4x" style="color: var(--couleur-primaire);"></i>
+                    </div>
+                    <h2 class="fw-bold" style="color: var(--couleur-primaire);">Créer un compte</h2>
+                    <p class="text-muted">Accédez à la plateforme SDAU Zorgho</p>
+                    <hr>
+                </div>
+                
+                <!-- Messages -->
+                <div id="error-message" class="alert alert-danger alert-custom d-none" role="alert"></div>
+                <div id="success-message" class="alert alert-success alert-custom d-none" role="alert"></div>
+                
+                <!-- Formulaire d'inscription -->
+                <form id="register-form">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="nom" class="form-label">
+                                <i class="fas fa-user me-2"></i>Nom
+                            </label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="nom" 
+                                name="nom" 
+                                required
+                            >
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label for="prenom" class="form-label">
+                                <i class="fas fa-user me-2"></i>Prénom
+                            </label>
+                            <input 
+                                type="text" 
+                                class="form-control" 
+                                id="prenom" 
+                                name="prenom" 
+                                required
+                            >
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="username" class="form-label">
+                            <i class="fas fa-id-badge me-2"></i>Nom d'utilisateur
+                        </label>
+                        <input 
+                            type="text" 
+                            class="form-control" 
+                            id="username" 
+                            name="username" 
+                            required
+                        >
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="email" class="form-label">
+                            <i class="fas fa-envelope me-2"></i>Adresse email
+                        </label>
+                        <input 
+                            type="email" 
+                            class="form-control" 
+                            id="email" 
+                            name="email" 
+                            required
+                        >
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="role" class="form-label">
+                            <i class="fas fa-user-tag me-2"></i>Rôle
+                        </label>
+                        <select class="form-control" id="role" name="role" required>
+                            <option value="consultation">Consultation</option>
+                            <!--<option value="gestionnaire">Gestionnaire</option>-->
+                            <!--<option value="admin">Administrateur</option>-->
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password" class="form-label">
+                            <i class="fas fa-lock me-2"></i>Mot de passe
+                        </label>
+                        <input 
+                            type="password" 
+                            class="form-control" 
+                            id="password" 
+                            name="password" 
+                            minlength="8"
+                            required
+                        >
+                        <small class="text-muted">Minimum 8 caractères</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="password_confirm" class="form-label">
+                            <i class="fas fa-lock me-2"></i>Confirmer le mot de passe
+                        </label>
+                        <input 
+                            type="password" 
+                            class="form-control" 
+                            id="password_confirm" 
+                            name="password_confirm" 
+                            required
+                        >
+                    </div>
+                    
+                    <div class="d-grid gap-2 mb-3">
+                        <button type="submit" class="btn btn-primary-custom btn-lg">
+                            <i class="fas fa-user-plus me-2"></i>Créer le compte
+                        </button>
+                    </div>
+                    
+                    <div class="text-center">
+                        <p class="mb-0">
+                            Déjà un compte ? 
+                            <a href="{% url 'sdau:login' %}" style="color: var(--couleur-primaire);">
+                                <strong>Se connecter</strong>
+                            </a>
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('register-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = Object.fromEntries(formData.entries());
+    
+    const errorDiv = document.getElementById('error-message');
+    const successDiv = document.getElementById('success-message');
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    
+    // Cacher les messages précédents
+    errorDiv.classList.add('d-none');
+    successDiv.classList.add('d-none');
+    
+    // Vérifier que les mots de passe correspondent
+    if (data.password !== data.password_confirm) {
+        errorDiv.textContent = 'Les mots de passe ne correspondent pas';
+        errorDiv.classList.remove('d-none');
+        return;
+    }
+    
+    // Désactiver le bouton
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Création...';
+    
+    try {
+        const response = await fetch('/api/auth/register/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            // Succès
+            successDiv.textContent = result.message || 'Compte créé avec succès !';
+            successDiv.classList.remove('d-none');
+            
+            // Rediriger vers la page de connexion après 2 secondes
+            setTimeout(() => {
+                window.location.href = '/login/';
+            }, 2000);
+        } else {
+            // Erreur - afficher les messages
+            let errorMsg = '';
+            if (typeof result === 'object') {
+                errorMsg = Object.values(result).flat().join(', ');
+            } else {
+                errorMsg = result.error || 'Erreur lors de la création du compte';
+            }
+            errorDiv.textContent = errorMsg;
+            errorDiv.classList.remove('d-none');
+            
+            // Réactiver le bouton
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Créer le compte';
+        }
+    } catch (error) {
+        errorDiv.textContent = 'Erreur de connexion au serveur';
+        errorDiv.classList.remove('d-none');
+        
+        // Réactiver le bouton
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Créer le compte';
+    }
+});
+</script>
+{% endblock %}
