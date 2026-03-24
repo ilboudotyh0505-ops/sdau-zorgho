@@ -16,14 +16,31 @@ from decouple import config
 BASE_DIR = Path(__file__).resolve().parent.parent
 #GDAL_LIBRARY_PATH = r"C:\Users\lenovo\Documents\DGUHVT\donnee stage\sdau_zorgho\venv\Lib\site-packages\osgeo\gdal.dll"
 #GEOS_LIBRARY_PATH = r"C:\Users\lenovo\Documents\DGUHVT\donnee stage\sdau_zorgho\venv\Lib\site-packages\osgeo\geos_c.dll"
-import os
+#import os
 
-os.environ['GDAL_LIBRARY_PATH'] = '/usr/lib/libgdal.so'
-os.environ['GEOS_LIBRARY_PATH'] = '/usr/lib/libgeos_c.so'
+#s.environ['GDAL_LIBRARY_PATH'] = '/usr/lib/libgdal.so'
+#os.environ['GEOS_LIBRARY_PATH'] = '/usr/lib/libgeos_c.so'
 # Sécurité
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-production')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+#ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = [h.strip() for h in config(
+    'ALLOWED_HOSTS',
+    default='localhost,127.0.0.1'
+).split(',') if h.strip()]
+
+if os.getenv("RENDER_EXTERNAL_HOSTNAME"):
+    ALLOWED_HOSTS.append(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
+
+GDAL_LIBRARY_PATH = config(
+    'GDAL_LIBRARY_PATH',
+    default='/usr/lib/x86_64-linux-gnu/libgdal.so'
+)
+
+GEOS_LIBRARY_PATH = config(
+    'GEOS_LIBRARY_PATH',
+    default='/usr/lib/x86_64-linux-gnu/libgeos_c.so'
+)
 # Forcer l'utilisation de PROJ depuis l'environnement virtuel
 #PROJ_LIB = os.path.join(os.path.dirname(__file__), '..', 'venv', 'Lib', 'site-packages', 'osgeo', 'data', 'proj')
 #os.environ['PROJ_LIB'] = PROJ_LIB
@@ -54,6 +71,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -126,9 +144,14 @@ USE_I18N = True
 USE_TZ = True
 
 # Fichiers statiques
-STATIC_URL = 'static/'
+#STATIC_URL = 'static/'
+#STATIC_ROOT = BASE_DIR / 'staticfiles'
+#STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
 
 MEDIA_URL = 'media/'
 MEDIA_ROOT = BASE_DIR / 'media'

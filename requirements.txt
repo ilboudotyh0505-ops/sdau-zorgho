@@ -33,3 +33,7 @@ python-dateutil==2.8.2
 
 # Développement
 django-extensions==3.2.3
+
+gunicorn==23.0.0
+whitenoise==6.9.0
+

@@ -1,24 +1,29 @@
-FROM python:3.11
+FROM python:3.11-slim
 
-# Installer GDAL (OBLIGATOIRE pour GeoDjango)
-RUN apt-get update && apt-get install -y \
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CPLUS_INCLUDE_PATH=/usr/include/gdal \
+    C_INCLUDE_PATH=/usr/include/gdal \
+    GDAL_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgdal.so \
+    GEOS_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/libgeos_c.so
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gdal-bin \
     libgdal-dev \
-    binutils \
+    libgeos-dev \
     libproj-dev \
+    binutils \
     && rm -rf /var/lib/apt/lists/*
 
-# Variables pour GDAL
-ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
-ENV C_INCLUDE_PATH=/usr/include/gdal
-
 WORKDIR /app
-COPY . /app
 
-RUN pip install --upgrade pip
-RUN pip install -r requirements.txt
+COPY requirements.txt /app/
+RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
-# Collecte des fichiers statiques
-RUN python manage.py collectstatic --noinput
+COPY . /app/
+
+RUN mkdir -p /app/static && python manage.py collectstatic --noinput
 
 EXPOSE 8000
+
+CMD ["sh", "-c", "gunicorn sdau_zorgho.wsgi:application --bind 0.0.0.0:${PORT:-8000}"]
