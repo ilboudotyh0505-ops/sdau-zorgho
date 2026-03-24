@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:13-3.1
+    environment:
+      POSTGRES_DB: SDAU_ZORGHOV2
+      POSTGRES_USER: sdau_user
+      POSTGRES_PASSWORD: mot_de_passe_securise
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  web:
+    build: .
+    command: gunicorn sdau_zorgho.wsgi:application --bind 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
