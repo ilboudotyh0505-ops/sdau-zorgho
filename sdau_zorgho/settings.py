@@ -14,15 +14,19 @@ from decouple import config
 
 # Répertoires de base
 BASE_DIR = Path(__file__).resolve().parent.parent
-GDAL_LIBRARY_PATH = r"C:\Users\lenovo\Documents\DGUHVT\donnee stage\sdau_zorgho\venv\Lib\site-packages\osgeo\gdal.dll"
-GEOS_LIBRARY_PATH = r"C:\Users\lenovo\Documents\DGUHVT\donnee stage\sdau_zorgho\venv\Lib\site-packages\osgeo\geos_c.dll"
+#GDAL_LIBRARY_PATH = r"C:\Users\lenovo\Documents\DGUHVT\donnee stage\sdau_zorgho\venv\Lib\site-packages\osgeo\gdal.dll"
+#GEOS_LIBRARY_PATH = r"C:\Users\lenovo\Documents\DGUHVT\donnee stage\sdau_zorgho\venv\Lib\site-packages\osgeo\geos_c.dll"
+import os
+
+os.environ['GDAL_LIBRARY_PATH'] = '/usr/lib/libgdal.so'
+os.environ['GEOS_LIBRARY_PATH'] = '/usr/lib/libgeos_c.so'
 # Sécurité
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-in-production')
 DEBUG = config('DEBUG', default=True, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
 # Forcer l'utilisation de PROJ depuis l'environnement virtuel
-PROJ_LIB = os.path.join(os.path.dirname(__file__), '..', 'venv', 'Lib', 'site-packages', 'osgeo', 'data', 'proj')
-os.environ['PROJ_LIB'] = PROJ_LIB
+#PROJ_LIB = os.path.join(os.path.dirname(__file__), '..', 'venv', 'Lib', 'site-packages', 'osgeo', 'data', 'proj')
+#os.environ['PROJ_LIB'] = PROJ_LIB
 
 
 

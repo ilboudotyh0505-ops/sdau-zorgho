@@ -1,28 +1,24 @@
-FROM python:3.11-slim
+FROM python:3.11
 
-ENV PYTHONUNBUFFERED=1
-ENV DEBIAN_FRONTEND=noninteractive
-
+# Installer GDAL (OBLIGATOIRE pour GeoDjango)
 RUN apt-get update && apt-get install -y \
-    build-essential \
     gdal-bin \
     libgdal-dev \
-    libgeos-dev \
+    binutils \
     libproj-dev \
-    postgresql-client \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Variables pour GDAL
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
+
 WORKDIR /app
+COPY . /app
 
-COPY requirements.txt .
 RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install -r requirements.txt
 
-COPY . .
-
+# Collecte des fichiers statiques
 RUN python manage.py collectstatic --noinput
 
 EXPOSE 8000
-
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "sdau_zorgho.wsgi:application"]
