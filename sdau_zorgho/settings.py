@@ -7,7 +7,7 @@ AUTH_USER_MODEL = 'sdau.Utilisateur'
 
 
 # Chemin vers les données PROJ (pour pyproj et GeoDjango)
-
+import dj_database_url
 from pathlib import Path
 import os
 from decouple import config
@@ -32,15 +32,35 @@ ALLOWED_HOSTS = [h.strip() for h in config(
 if os.getenv("RENDER_EXTERNAL_HOSTNAME"):
     ALLOWED_HOSTS.append(os.getenv("RENDER_EXTERNAL_HOSTNAME"))
 
-GDAL_LIBRARY_PATH = config(
-    'GDAL_LIBRARY_PATH',
-    default='/usr/lib/x86_64-linux-gnu/libgdal.so'
-)
+#GDAL_LIBRARY_PATH = config(
+    #'GDAL_LIBRARY_PATH',
+    #default='/usr/lib/x86_64-linux-gnu/libgdal.so'
+#)
 
-GEOS_LIBRARY_PATH = config(
-    'GEOS_LIBRARY_PATH',
-    default='/usr/lib/x86_64-linux-gnu/libgeos_c.so'
-)
+#GEOS_LIBRARY_PATH = config(
+    #'GEOS_LIBRARY_PATH',
+    #default='/usr/lib/x86_64-linux-gnu/libgeos_c.so'
+#)
+
+# Configuration GDAL/GEOS selon l'environnement
+if os.name == "nt":  # Windows local
+    gdal_path = config("GDAL_LIBRARY_PATH", default= r"C:\Users\lenovo\Documents\DGUHVT\donnee stage\sdau_zorgho\venv\Lib\site-packages\osgeo\gdal.dll")
+    geos_path = config("GEOS_LIBRARY_PATH", default= r"C:\Users\lenovo\Documents\DGUHVT\donnee stage\sdau_zorgho\venv\Lib\site-packages\osgeo\geos_c.dll")
+
+    if gdal_path:
+        GDAL_LIBRARY_PATH = gdal_path
+    if geos_path:
+        GEOS_LIBRARY_PATH = geos_path
+
+else:  # Linux / Render / Docker
+    GDAL_LIBRARY_PATH = config(
+        "GDAL_LIBRARY_PATH",
+        default="/usr/lib/x86_64-linux-gnu/libgdal.so"
+    )
+    GEOS_LIBRARY_PATH = config(
+        "GEOS_LIBRARY_PATH",
+        default="/usr/lib/x86_64-linux-gnu/libgeos_c.so"
+    )
 # Forcer l'utilisation de PROJ depuis l'environnement virtuel
 #PROJ_LIB = os.path.join(os.path.dirname(__file__), '..', 'venv', 'Lib', 'site-packages', 'osgeo', 'data', 'proj')
 #os.environ['PROJ_LIB'] = PROJ_LIB
@@ -102,17 +122,34 @@ TEMPLATES = [
 WSGI_APPLICATION = 'sdau_zorgho.wsgi.application'
 
 # Base de données PostGIS
+#DATABASES = {
+    #'default': {
+        #'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        #'NAME': config('DB_NAME', default='SDAU_ZORGHOV2'),
+        #'USER': config('DB_USER', default='postgres'),
+        #'PASSWORD': config('DB_PASSWORD', default='12345'),
+        #'HOST': config('DB_HOST', default='localhost'),
+        #'PORT': config('DB_PORT', default='5432'),
+        
+        #'OPTIONS': {
+           # 'options': '-c search_path=public,django'}
+   # }
+#}
+
+import os
+import dj_database_url
+
+IS_RENDER = os.environ.get("RENDER") == "True"  # à mettre dans Render Environment Variables
+
+DATABASE_URL = f"postgresql://{os.environ.get('DB_USER', 'postgres')}:{os.environ.get('DB_PASSWORD', '12345')}@{os.environ.get('DB_HOST', 'localhost')}:{os.environ.get('DB_PORT', '5432')}/{os.environ.get('DB_NAME', 'SDAU_ZORGHOV2')}?options=-c%20search_path%3Dpublic,django"
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': config('DB_NAME', default='SDAU_ZORGHOV2'),
-        'USER': config('DB_USER', default='postgres'),
-        'PASSWORD': config('DB_PASSWORD', default='12345'),
-        'HOST': config('DB_HOST', default='localhost'),
-        'PORT': config('DB_PORT', default='5432'),
-        'OPTIONS': {
-            'options': '-c search_path=public,django'}
-    }
+    'default': dj_database_url.config(
+        default=DATABASE_URL,
+        engine='django.contrib.gis.db.backends.postgis',
+        conn_max_age=600,
+        ssl_require=IS_RENDER  # SSL seulement sur Render
+    )
 }
 # Validation des mots de passe
 AUTH_PASSWORD_VALIDATORS = [
