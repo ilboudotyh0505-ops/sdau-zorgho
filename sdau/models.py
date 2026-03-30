@@ -3,8 +3,8 @@ Modèles GeoDjango pour SDAU Zorgho - VERSION CORRIGÉE
 Relation Many-to-Many entre Secteur et ZoneSdau
 """
 
-from django.contrib.gis.db import models
 from django.contrib.auth.models import AbstractUser
+from django.contrib.gis.db import models
 from django.db import models as django_models
 
 
@@ -88,7 +88,7 @@ class ZoneSdau(models.Model):
         ('Équipements', 'Équipements'),
         ('Naturelle', 'Naturelle'),
         ('Espaces verts', 'Espaces verts'),
-        ('Agricole/pastoralisme', 'Agricole/pastoralisme'),
+        ('Agricole/pastoralisme', 'Agropastoralisme'),
         ('Touristique', 'Touristique'),
         ('Réserve foncière', 'Réserve foncière'),
     ]
@@ -189,7 +189,7 @@ class ZoneSdau(models.Model):
             MultiPolygon: Géométrie transformée
         """
         from django.contrib.gis.geos import MultiPolygon
-        
+
         # Cloner la géométrie pour ne pas modifier l'original
         geom_transformee = self.geom.clone()
         
@@ -249,6 +249,7 @@ class ZoneSdau(models.Model):
 
 
 class SecteurZone(models.Model):
+    id = models.AutoField(primary_key=True)   #
     id_secteur = models.ForeignKey(
         Secteur,
         on_delete=models.CASCADE,

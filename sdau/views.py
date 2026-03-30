@@ -2,28 +2,34 @@
 Vues API pour SDAU Zorgho - VERSION CORRIGÉE
 Support filtrage multi-secteurs avec relation Many-to-Many
 """
-
-from rest_framework import viewsets, status, filters
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Sum, Count, Q
-from django.contrib.auth import authenticate, login, logout
-from django.views.decorators.csrf import csrf_exempt
-from django.utils.decorators import method_decorator
+import json  # ← AJOUTER
 import logging
 
-from .models import Secteur, ZoneSdau, Utilisateur
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.gis.db.models import (
+    Union as GeoUnion,  # ← AJOUTER (aggregate spatial)
+)
+from django.contrib.gis.db.models.functions import Intersection  # ← AJOUTER
+from django.db.models import Count, Q, Sum
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import filters, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
+from .models import Secteur, Utilisateur, ZoneSdau
+from .permissions import IsAdminRole
+from .serializers import CoordinateTransformSerializer  # ✅ NOUVEAU
+from .serializers import SystemeCoordonneeSerializer  # ✅ NOUVEAU
 from .serializers import (
     SecteurSerializer,
-    ZoneSdauSerializer,
-    ZoneSdauListSerializer,
-    UtilisateurSerializer,
-    UtilisateurCreateSerializer,
     StatistiquesSerializer,
-    CoordinateTransformSerializer,  # ✅ NOUVEAU
-    SystemeCoordonneeSerializer      # ✅ NOUVEAU
+    UtilisateurCreateSerializer,
+    UtilisateurSerializer,
+    ZoneSdauListSerializer,
+    ZoneSdauSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,7 +61,7 @@ class ZoneSdauViewSet(viewsets.ReadOnlyModelViewSet):
             queryset = queryset.filter(
                 secteurs__id_secteur__in=secteurs_ids
             ).distinct()
-           
+
         nom_secteur = self.request.query_params.get('nom_secteur')
         if nom_secteur:
             queryset = queryset.filter(
@@ -70,7 +76,74 @@ class ZoneSdauViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=['get'])
     def geojson(self, request):
+        """
+        Retourne les zones en GeoJSON.
+        Si un secteur est filtré → découpe les géométries à la limite du secteur (ST_Intersection).
+        Si pas de secteur → retourne les géométries complètes.
+        """
+        # ── 1. Lire les paramètres de filtre ──────────────────────────────────
+        secteur_ids = request.query_params.getlist('secteur')      # ex: ['1'] ou ['1','2']
+        nom_secteur = request.query_params.get('nom_secteur')      # ex: 'Secteur 1'
+
+        # ── 2. Appliquer les autres filtres (type_zone, statut_amenagement)
         queryset = self.filter_queryset(self.get_queryset())
+
+        secteur_actif = bool(secteur_ids or nom_secteur)
+
+        # ─────────────────────────────────────────────────────────────────────
+        # CAS 1 : Filtre secteur actif → découper les géométries
+        # ─────────────────────────────────────────────────────────────────────
+        if secteur_actif:
+
+            if secteur_ids:
+                secteurs_qs = Secteur.objects.filter(id_secteur__in=secteur_ids)
+            else:
+                secteurs_qs = Secteur.objects.filter(nom_secteur__icontains=nom_secteur)
+
+            secteur_geom = secteurs_qs.aggregate(
+                union_geom=GeoUnion('geom')
+            )['union_geom']
+
+            if not secteur_geom:
+                logger.warning(f"Aucune géométrie trouvée pour secteur(s): {secteur_ids or nom_secteur}")
+                return Response({'type': 'FeatureCollection', 'features': []})
+
+            queryset = queryset.annotate(
+                geom_clipped=Intersection('geom', secteur_geom)
+            )
+
+            features = []
+            for zone in queryset.prefetch_related('secteurs'):
+                geom_clipped = zone.geom_clipped
+
+                if not geom_clipped or geom_clipped.empty:
+                    continue
+
+                feature = {
+                    'type': 'Feature',
+                    'geometry': json.loads(geom_clipped.geojson),
+                    'properties': {
+                        'id_zone': zone.id_zone,
+                        'zone_sdau': zone.zone_sdau,
+                        'aire_ha': float(zone.aire_ha),
+                        'type_zone': zone.type_zone,
+                        'statut_amenagement': zone.statut_amenagement,
+                        'secteurs': [
+                            {'id_secteur': s.id_secteur, 'nom_secteur': s.nom_secteur}
+                            for s in zone.secteurs.all()
+                        ],
+                        'noms_secteurs': list(zone.secteurs.values_list('nom_secteur', flat=True)),
+                        'couleur': zone.get_couleur_cartographie(),
+                    }
+                }
+                features.append(feature)
+
+            logger.info(f"[ST_Intersection] {len(features)} zones découpées retournées")
+            return Response({'type': 'FeatureCollection', 'features': features})
+
+        # ─────────────────────────────────────────────────────────────────────
+        # CAS 2 : Pas de filtre secteur
+        # ─────────────────────────────────────────────────────────────────────
         serializer = ZoneSdauSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -108,7 +181,7 @@ class ZoneSdauViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def choix(self, request):
         secteurs_data = [
-            {'id': s.id_secteur, 'nom': s.nom_secteur} 
+            {'id': s.id_secteur, 'nom': s.nom_secteur}
             for s in Secteur.objects.all()
         ]
         return Response({
@@ -116,12 +189,12 @@ class ZoneSdauViewSet(viewsets.ReadOnlyModelViewSet):
             'statuts_amenagement': [choice[0] for choice in ZoneSdau.STATUT_AMENAGEMENT_CHOICES],
             'secteurs': secteurs_data,
         })
-    @action(detail=False, methods=['post'], permission_classes=[AllowAny])
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def point_info(self, request):
         try:
             from django.contrib.gis.geos import Point
 
-            # Récupération et validation des coordonnées
             try:
                 longitude = float(request.data.get('longitude'))
                 latitude = float(request.data.get('latitude'))
@@ -142,7 +215,6 @@ class ZoneSdauViewSet(viewsets.ReadOnlyModelViewSet):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Limites Burkina Faso
             BF_LON_MIN, BF_LON_MAX = -5.5, 2.5
             BF_LAT_MIN, BF_LAT_MAX = 9.5, 15.1
 
@@ -236,15 +308,23 @@ class CoordinateTransformViewSet(viewsets.ViewSet):
     def systemes(self, request):
         systemes = [
             {'srid': 4326, 'nom': 'WGS84', 'description': 'Système GPS mondial (latitude/longitude)',
-             'unite': 'degrés décimaux', 'zone_application': 'Monde entier', 'exemple': 'Longitude: -0.6167, Latitude: 12.2500'},
+             'unite': 'degrés décimaux', 'zone_application': 'Monde entier',
+             'exemple': 'Longitude: -0.6167, Latitude: 12.2500'},
             {'srid': 32630, 'nom': 'UTM Zone 30N', 'description': 'Universal Transverse Mercator Zone 30 Nord',
-             'unite': 'mètres', 'zone_application': 'Burkina Faso (partie Ouest)', 'exemple': 'Est: 750000, Nord: 1350000'},
+             'unite': 'mètres', 'zone_application': 'Burkina Faso (partie Ouest)',
+             'exemple': 'Est: 750000, Nord: 1350000'},
             {'srid': 32631, 'nom': 'UTM Zone 31N', 'description': 'Universal Transverse Mercator Zone 31 Nord',
-             'unite': 'mètres', 'zone_application': 'Burkina Faso (partie Est)', 'exemple': 'Est: 250000, Nord: 1350000'},
-            {'srid': 2043, 'nom': 'Adindan UTM Zone 30N', 'description': 'Système géodésique Adindan (datum local)',
-             'unite': 'mètres', 'zone_application': 'Afrique de l\'Ouest', 'exemple': 'Est: 750000, Nord: 1350000'},
-            {'srid': 3857, 'nom': 'Web Mercator', 'description': 'Projection Mercator pour cartographie web',
-             'unite': 'mètres', 'zone_application': 'Cartographie web (Google Maps, OpenStreetMap)', 'exemple': 'X: -68700, Y: 1371000'}
+             'unite': 'mètres', 'zone_application': 'Burkina Faso (partie Est)',
+             'exemple': 'Est: 250000, Nord: 1350000'},
+            {'srid': 2043, 'nom': 'Adindan UTM Zone 30N',
+             'description': 'Système géodésique Adindan (datum local)',
+             'unite': 'mètres', 'zone_application': 'Afrique de l\'Ouest',
+             'exemple': 'Est: 750000, Nord: 1350000'},
+            {'srid': 3857, 'nom': 'Web Mercator',
+             'description': 'Projection Mercator pour cartographie web',
+             'unite': 'mètres',
+             'zone_application': 'Cartographie web (Google Maps, OpenStreetMap)',
+             'exemple': 'X: -68700, Y: 1371000'}
         ]
         return Response({
             'systemes': systemes,
@@ -263,7 +343,8 @@ class CoordinateTransformViewSet(viewsets.ViewSet):
             return Response({'error': 'Paramètres requis : points, srid_source, srid_cible'},
                             status=status.HTTP_400_BAD_REQUEST)
         if len(points) > 1000:
-            return Response({'error': 'Maximum 1000 points par requête'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Maximum 1000 points par requête'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         try:
             resultats = []
@@ -275,7 +356,11 @@ class CoordinateTransformViewSet(viewsets.ViewSet):
                     continue
                 point = Point(lon, lat, srid=srid_source)
                 point.transform(srid_cible)
-                result = {'index': idx, 'source': {'longitude': lon, 'latitude': lat}, 'cible': {'x': point.x, 'y': point.y}}
+                result = {
+                    'index': idx,
+                    'source': {'longitude': lon, 'latitude': lat},
+                    'cible': {'x': point.x, 'y': point.y}
+                }
                 if srid_cible == 4326:
                     result['cible']['longitude'] = point.x
                     result['cible']['latitude'] = point.y
@@ -284,32 +369,68 @@ class CoordinateTransformViewSet(viewsets.ViewSet):
                     result['cible']['nord'] = point.y
                 resultats.append(result)
 
-            return Response({'success': True, 'total': len(points),
-                             'transformes': len([r for r in resultats if 'error' not in r]),
-                             'resultats': resultats})
+            return Response({
+                'success': True,
+                'total': len(points),
+                'transformes': len([r for r in resultats if 'error' not in r]),
+                'resultats': resultats
+            })
         except Exception as e:
             logger.error(f"Erreur transformation batch: {str(e)}")
-            return Response({'error': f'Erreur: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': f'Erreur: {str(e)}'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def _get_nom_systeme(self, srid):
-        noms = {4326: 'WGS84 (GPS)', 32630: 'UTM Zone 30N', 32631: 'UTM Zone 31N', 2043: 'Adindan UTM Zone 30N', 3857: 'Web Mercator'}
+        noms = {
+            4326: 'WGS84 (GPS)',
+            32630: 'UTM Zone 30N',
+            32631: 'UTM Zone 31N',
+            2043: 'Adindan UTM Zone 30N',
+            3857: 'Web Mercator'
+        }
         return noms.get(srid, f'SRID {srid}')
 
 
 class UtilisateurViewSet(viewsets.ModelViewSet):
     queryset = Utilisateur.objects.all()
-    permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
         if self.action == 'create':
             return UtilisateurCreateSerializer
         return UtilisateurSerializer
 
+    def get_permissions(self):
+        if self.action == 'me':
+            permission_classes = [IsAuthenticated]
+        elif self.action in ['list', 'retrieve', 'update', 'partial_update', 'destroy', 'definir_role']:
+            permission_classes = [IsAdminRole]
+        else:
+            permission_classes = [IsAuthenticated]
+        return [permission() for permission in permission_classes]
+
     @action(detail=False, methods=['get'])
     def me(self, request):
         serializer = UtilisateurSerializer(request.user)
         return Response(serializer.data)
 
+    @action(detail=True, methods=['patch'])
+    def definir_role(self, request, pk=None):
+        utilisateur = self.get_object()
+        nouveau_role = request.data.get('role')
+
+        if nouveau_role not in ['admin', 'consultation']:
+            return Response(
+                {'error': 'Rôle invalide'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        utilisateur.role = nouveau_role
+        utilisateur.save(update_fields=['role'])
+
+        return Response({
+            'message': 'Rôle mis à jour avec succès',
+            'utilisateur': UtilisateurSerializer(utilisateur).data
+        })
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AuthViewSet(viewsets.ViewSet):
@@ -320,7 +441,8 @@ class AuthViewSet(viewsets.ViewSet):
         email = request.data.get('email')
         password = request.data.get('password')
         if not email or not password:
-            return Response({'error': 'Email et mot de passe requis'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': 'Email et mot de passe requis'},
+                            status=status.HTTP_400_BAD_REQUEST)
         try:
             user = Utilisateur.objects.get(email=email)
             if user.check_password(password):
@@ -328,12 +450,16 @@ class AuthViewSet(viewsets.ViewSet):
                     login(request, user, backend='django.contrib.auth.backends.ModelBackend')
                     serializer = UtilisateurSerializer(user)
                     return Response({'message': 'Connexion réussie', 'user': serializer.data})
-                return Response({'error': 'Compte désactivé'}, status=status.HTTP_403_FORBIDDEN)
-            return Response({'error': 'Email ou mot de passe incorrect'}, status=status.HTTP_401_UNAUTHORIZED)
+                return Response({'error': 'Compte désactivé'},
+                                status=status.HTTP_403_FORBIDDEN)
+            return Response({'error': 'Email ou mot de passe incorrect'},
+                            status=status.HTTP_401_UNAUTHORIZED)
         except Utilisateur.DoesNotExist:
-            return Response({'error': 'Email ou mot de passe incorrect'}, status=status.HTTP_401_UNAUTHORIZED)
+            return Response({'error': 'Email ou mot de passe incorrect'},
+                            status=status.HTTP_401_UNAUTHORIZED)
         except Exception:
-            return Response({'error': 'Erreur serveur lors de la connexion'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'error': 'Erreur serveur lors de la connexion'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=False, methods=['post'])
     def logout(self, request):
@@ -345,8 +471,10 @@ class AuthViewSet(viewsets.ViewSet):
         serializer = UtilisateurCreateSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response({'message': 'Compte créé avec succès'}, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'message': 'Compte créé avec succès'},
+                            status=status.HTTP_201_CREATED)
+        return Response(serializer.errors,
+                        status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=['get'])
     def check(self, request):

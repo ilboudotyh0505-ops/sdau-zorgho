@@ -1,33 +1,29 @@
-"""
-Vues pour les pages frontend
-"""
-
-from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
+from django.http import HttpResponseForbidden  # ✅ AJOUT
+from django.shortcuts import redirect, render
 
 
 def index(request):
-    """Page d'accueil - redirige vers carte si connecté"""
     if request.user.is_authenticated:
         return redirect('sdau:carte')
     return redirect('sdau:login')
 
-
 def login_page(request):
-    """Page de connexion"""
     if request.user.is_authenticated:
         return redirect('sdau:carte')
     return render(request, 'sdau/login.html')
 
-
 def register_page(request):
-    """Page d'inscription"""
     if request.user.is_authenticated:
         return redirect('sdau:carte')
     return render(request, 'sdau/register.html')
 
-
 @login_required(login_url='/login/')
 def carte(request):
-    """Page principale de la carte"""
     return render(request, 'sdau/carte.html')
+
+@login_required(login_url='/login/')
+def administration_view(request):
+    if request.user.role != 'admin':
+        return HttpResponseForbidden("Accès refusé")
+    return render(request, 'sdau/administration.html')

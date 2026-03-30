@@ -1,3 +1,4 @@
+
 {% extends 'base.html' %}
 
 {% block title %}Connexion - SDAU Zorgho{% endblock %}
@@ -5,130 +6,160 @@
 {% block body_class %}auth-page d-flex flex-column{% endblock %}
 
 {% block content %}
-<div class="container d-flex justify-content-center align-items-center" style="min-height: 80vh;">
-    <div class="col-md-5">
-        <div class="card card-custom">
-            <div class="card-body p-5">
-                <!-- Logo et titre -->
-                <div class="text-center mb-4">
-                    <div class="mb-3">
-                        <i class="fas fa-map-marked-alt fa-4x" style="color: var(--couleur-primaire);"></i>
-                    </div>
-                    <h2 class="fw-bold" style="color: var(--couleur-primaire);">SDAU Zorgho</h2>
-                    <p class="text-muted">Système de Géolocalisation des Zones</p>
-                    <hr>
-                </div>
-                
-                <!-- Messages d'erreur -->
-                <div id="error-message" class="alert alert-danger alert-custom d-none" role="alert"></div>
-                
-                <!-- Formulaire de connexion -->
-                <form id="login-form">
-                    {% csrf_token %}
-                    
-                    <div class="mb-3">
-                        <label for="email" class="form-label">
-                            <i class="fas fa-envelope me-2"></i>Adresse email
-                        </label>
-                        <input 
-                            type="email" 
-                            class="form-control" 
-                            id="email" 
-                            name="email" 
-                            placeholder="exemple@email.com"
-                            required
-                        >
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="password" class="form-label">
-                            <i class="fas fa-lock me-2"></i>Mot de passe
-                        </label>
-                        <input 
-                            type="password" 
-                            class="form-control" 
-                            id="password" 
-                            name="password" 
-                            placeholder="••••••••"
-                            required
-                        >
-                    </div>
-                    
-                    <div class="d-grid gap-2 mb-3">
-                        <button type="submit" class="btn btn-primary-custom btn-lg">
-                            <i class="fas fa-sign-in-alt me-2"></i>Se connecter
-                        </button>
-                    </div>
-                    
-                    <div class="text-center">
-                        <p class="mb-0">
-                            Pas encore de compte ? 
-                            <a href="{% url 'sdau:register' %}" style="color: var(--couleur-primaire);">
-                                <strong>Créer un compte</strong>
-                            </a>
-                        </p>
-                    </div>
-                </form>
-            </div>
+<div
+  class="container d-flex justify-content-center align-items-center"
+  style="min-height: 80vh"
+>
+  <div class="col-md-5">
+    <div class="card card-custom">
+      <div class="card-body p-5">
+        <!-- Logo et titre -->
+        <div class="text-center mb-4">
+          <div class="mb-3">
+            <i
+              class="fas fa-map-marked-alt fa-4x"
+              style="color: var(--couleur-primaire)"
+            ></i>
+          </div>
+          <h2 class="fw-bold" style="color: var(--couleur-primaire)">
+            SDAU Zorgho
+          </h2>
+          <p class="text-muted">Système de Géolocalisation des Zones</p>
+          <hr />
         </div>
-        
-        <!-- Informations DGUVT -->
-        <div class="text-center mt-4">
-            <p class="text-muted">
-                <i class="fas fa-building me-2"></i>
-                <strong>DGUVT</strong> - Burkina Faso
-            </p>
-        </div>
-    </div>
-</div>
-{% endblock %}
 
-{% block extra_js %}
+        <!-- Messages d'erreur -->
+        <div
+          id="error-message"
+          class="alert alert-danger alert-custom d-none"
+          role="alert"
+        ></div>
+
+        <!-- Formulaire de connexion -->
+        <form id="login-form">
+          {% csrf_token %}
+
+          <div class="mb-3">
+            <label for="email" class="form-label">
+              <i class="fas fa-envelope me-2"></i>Adresse email
+            </label>
+            <input
+              type="email"
+              class="form-control"
+              id="email"
+              name="email"
+              placeholder="exemple@email.com"
+              required
+            />
+          </div>
+
+          <div class="mb-3">
+            <label for="password" class="form-label">
+              <i class="fas fa-lock me-2"></i>Mot de passe
+            </label>
+            <input
+              type="password"
+              class="form-control"
+              id="password"
+              name="password"
+              placeholder="••••••••"
+              required
+            />
+          </div>
+
+          <div class="d-grid gap-2 mb-3">
+            <button type="submit" class="btn btn-primary-custom btn-lg">
+              <i class="fas fa-sign-in-alt me-2"></i>Se connecter
+            </button>
+          </div>
+
+          <div class="text-center">
+            <p class="mb-0">
+              Pas encore de compte ?
+              <a
+                href="{% url 'sdau:register' %}"
+                style="color: var(--couleur-primaire)"
+              >
+                <strong>Créer un compte</strong>
+              </a>
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Informations DGUVT -->
+    <div class="text-center mt-4">
+      <p class="text-muted">
+        <i class="fas fa-building me-2"></i>
+        <strong>DGUVT</strong> - Burkina Faso
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block extra_js %}
 <script>
-document.getElementById('login-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
-    const errorDiv = document.getElementById('error-message');
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    
-    // Désactiver le bouton pendant la requête
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Connexion...';
-    
-    try {
-        const response = await fetch('/api/auth/login/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-            },
-            body: JSON.stringify({ email, password })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            // Succès - redirection vers la carte
-            window.location.href = '/carte/';
-        } else {
-            // Erreur - afficher le message
-            errorDiv.textContent = data.error || 'Erreur de connexion';
-            errorDiv.classList.remove('d-none');
-            
-            // Réactiver le bouton
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Se connecter';
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";");
+      for (let cookie of cookies) {
+        cookie = cookie.trim();
+        if (cookie.startsWith(name + "=")) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
         }
-    } catch (error) {
-        errorDiv.textContent = 'Erreur de connexion au serveur';
-        errorDiv.classList.remove('d-none');
-        
-        // Réactiver le bouton
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = '<i class="fas fa-sign-in-alt me-2"></i>Se connecter';
+      }
     }
-});
+    return cookieValue;
+  }
+
+  document
+    .getElementById("login-form")
+    .addEventListener("submit", async function (e) {
+      e.preventDefault();
+
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const errorDiv = document.getElementById("error-message");
+      const submitBtn = e.target.querySelector('button[type="submit"]');
+
+      errorDiv.classList.add("d-none");
+      errorDiv.textContent = "";
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML =
+        '<i class="fas fa-spinner fa-spin me-2"></i>Connexion...';
+
+      try {
+        const response = await fetch("/api/auth/login/", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          body: JSON.stringify({ email, password }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          window.location.href = data.redirect_url || "/carte/";
+          return;
+        }
+
+        errorDiv.textContent = data.error || "Erreur de connexion";
+        errorDiv.classList.remove("d-none");
+      } catch (error) {
+        errorDiv.textContent = "Erreur de connexion au serveur";
+        errorDiv.classList.remove("d-none");
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML =
+          '<i class="fas fa-sign-in-alt me-2"></i>Se connecter';
+      }
+    });
 </script>
 {% endblock %}

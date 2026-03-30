@@ -22,8 +22,10 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 
 COPY . /app/
 
-RUN mkdir -p /app/static && python manage.py collectstatic --noinput
+RUN mkdir -p /app/staticfiles /app/static
 
-EXPOSE 8000
 
-CMD ["sh", "-c", "gunicorn sdau_zorgho.wsgi:application --bind 0.0.0.0:${PORT:-8000}"]
+CMD ["sh", "-c", \
+  "python manage.py migrate --noinput && \
+   python manage.py collectstatic --noinput && \
+   gunicorn sdau_zorgho.wsgi:application --bind 0.0.0.0:${PORT:-8000}"]

@@ -5,8 +5,8 @@ Support de la relation Many-to-Many Secteur-Zone
 
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
-from .models import Secteur, ZoneSdau, Utilisateur
 
+from .models import Secteur, Utilisateur, ZoneSdau
 
 # ==========================================================
 # SECTEURS
@@ -39,11 +39,11 @@ class ZoneSdauSerializer(GeoFeatureModelSerializer):
     Serializer pour les zones SDAU avec géométrie GeoJSON
     Support des secteurs multiples
     """
-
     secteurs = serializers.SerializerMethodField()
     noms_secteurs = serializers.SerializerMethodField()
     couleur = serializers.SerializerMethodField()
-    
+    type_zone = serializers.CharField(source='get_type_zone_display')
+
     class Meta:
         model = ZoneSdau
         geo_field = 'geom'
@@ -82,7 +82,7 @@ class ZoneSdauListSerializer(serializers.ModelSerializer):
     """Serializer simplifié pour les listes (sans géométrie)"""
 
     noms_secteurs = serializers.SerializerMethodField()
-    
+    type_zone = serializers.CharField(source='get_type_zone_display')  # ✅ Affichage propre
     class Meta:
         model = ZoneSdau
         fields = [
@@ -151,6 +151,7 @@ class UtilisateurCreateSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password')
         user = Utilisateur(**validated_data)
         user.set_password(password)
+        user.role = 'consultation'
         user.save()
         return user
 
