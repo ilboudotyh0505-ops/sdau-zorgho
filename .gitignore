@@ -64,3 +64,5 @@ geos-config
 # Migrations (optionnel - à adapter selon besoin)
 # */migrations/*.py
 # !*/migrations/__init__.py
+.env
+.env.*
