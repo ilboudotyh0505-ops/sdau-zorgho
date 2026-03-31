@@ -228,6 +228,7 @@ from django.core.exceptions import ImproperlyConfigured
 from decouple import config
 
 # Récupération de la variable d’environnement
+
 SECRET_KEY = config("SECRET_KEY", default="")
 
 if not SECRET_KEY:
