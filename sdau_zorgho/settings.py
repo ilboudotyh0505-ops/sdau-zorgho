@@ -208,35 +208,52 @@ WSGI_APPLICATION = "sdau_zorgho.wsgi.application"
 # -----------------------------------------------------------------------------
 # BASE DE DONNÉES
 # -----------------------------------------------------------------------------
-if ENV == "local":
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.contrib.gis.db.backends.postgis",
-            "NAME": config("DB_NAME", default="SDAU_ZORGHOV2"),
-            "USER": config("DB_USER", default="postgres"),
-            "PASSWORD": config("DB_PASSWORD", default="12345"),
-            "HOST": config("DB_HOST", default="localhost"),
-            "PORT": config("DB_PORT", default="5432"),
-            "OPTIONS": {
-                "options": "-c search_path=public,django"
-            },
-        }
-    }
-else:
-    DATABASE_URL = config("DATABASE_URL", default="")
-    if not DATABASE_URL:
-        raise ImproperlyConfigured("DATABASE_URL manquante en production")
+#if ENV == "local":
+    #DATABASES = {
+        #"default": {
+            #"ENGINE": "django.contrib.gis.db.backends.postgis",
+            #"NAME": config("DB_NAME", default="SDAU_ZORGHOV2"),
+            #"USER": config("DB_USER", default="postgres"),
+            #"PASSWORD": config("DB_PASSWORD", default="12345"),
+            #"HOST": config("DB_HOST", default="localhost"),
+            #"PORT": config("DB_PORT", default="5432"),
+            #"OPTIONS": {
+               # "options": "-c search_path=public,django"
+            #},
+       # }
+   # }
+#else:
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
+from decouple import config
 
-    DATABASES = {
-        "default": dj_database_url.parse(
-            DATABASE_URL,
-            conn_max_age=600,
-            ssl_require=True,
-        )
-    }
-    DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
-    DATABASES["default"].setdefault("OPTIONS", {})
-    DATABASES["default"]["OPTIONS"]["options"] = "-c search_path=public,django"
+# Récupération de la variable d’environnement
+SECRET_KEY = config("SECRET_KEY", default="")
+
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY manquante en production")
+
+DATABASE_URL = config("DATABASE_URL", default="")
+
+if not DATABASE_URL:
+    raise ImproperlyConfigured("DATABASE_URL manquante en production")
+
+# Configuration de la base
+DATABASES = {
+    "default": dj_database_url.parse(
+        DATABASE_URL,
+        conn_max_age=600,
+        ssl_require=True,
+    )
+}
+
+# Forcer PostGIS
+DATABASES["default"]["ENGINE"] = "django.contrib.gis.db.backends.postgis"
+
+# Options supplémentaires (sécurité SSL)
+DATABASES["default"].setdefault("OPTIONS", {})
+DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
+    #DATABASES["default"]["OPTIONS"]["options"] = "-c search_path=public,django"
 
 
 # -----------------------------------------------------------------------------
