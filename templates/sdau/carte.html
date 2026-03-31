@@ -1,578 +1,195 @@
 {% extends 'base.html' %}
-
 {% block title %}Carte SDAU - Zorgho{% endblock %}
-
 {% block body_class %}carte-page{% endblock %}
 
 {% block extra_css %}
 <style>
-  /* ============================================ */
-  /* STYLES GÉNÉRAUX */
-  /* ============================================ */
-  body,
-  html {
-    height: 100%;
-    overflow: hidden;
-  }
+  html, body { height: 100%; overflow: hidden; }
+  body.carte-page { background: #f4f6f9; }
 
-  /* ============================================ */
-  /* CARTE PRINCIPALE */
-  /* ============================================ */
-  #map {
-    width: 100%;
-    height: calc(100vh - 60px);
-    position: relative;
-  }
+  .header-dguvt { position: relative; z-index: 2100; }
+  .header-dguvt .container-fluid { min-height: 60px; }
+  .header-dguvt h4 { font-size: 1.25rem; line-height: 1.1; }
+  .header-dguvt small { display: block; line-height: 1.2; }
 
-  /* ============================================ */
-  /* SIDEBAR / TABLEAU DE BORD */
-  /* ============================================ */
+  #map { width: 100%; height: calc(100vh - 60px); position: relative; }
+
   #sidebar {
-    position: fixed;
-    top: 60px;
-    left: 0;
-    width: 350px;
-    height: calc(100vh - 60px);
-    background: white;
-    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
-    z-index: 1000;
-    overflow-y: auto;
-    transition: transform 0.3s ease;
+    position: fixed; top: 60px; left: 0; width: 350px; height: calc(100vh - 60px);
+    background: #fff; box-shadow: 2px 0 14px rgba(0,0,0,.12); z-index: 1600;
+    overflow-y: auto; overflow-x: hidden; transition: transform .3s ease, width .3s ease;
   }
+  #sidebar.closed { transform: translateX(-100%); }
 
-  /* Sidebar fermée */
-  #sidebar.closed {
-    transform: translateX(-350px);
-  }
-
-  /* Bouton toggle sidebar */
   #sidebar-toggle {
-    position: fixed;
-    top: 70px;
-    left: 350px;
-    z-index: 1001;
-    background: white;
-    border: none;
-    padding: 10px 15px;
-    cursor: pointer;
-    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.2);
-    transition: left 0.3s ease;
-    border-radius: 0 5px 5px 0;
+    position: fixed; top: 72px; left: 350px; z-index: 1700; width: 44px; height: 44px;
+    border: none; border-radius: 0 10px 10px 0; background: #fff; cursor: pointer;
+    box-shadow: 2px 0 8px rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center;
+    transition: left .3s ease;
   }
+  #sidebar-toggle.closed { left: 12px; border-radius: 10px; }
 
-  #sidebar-toggle.closed {
-    left: 0;
-  }
+  .sidebar-section { padding: 15px; border-bottom: 1px solid #e9ecef; }
+  .sidebar-section h5 { color: var(--couleur-primaire); font-weight: 700; margin-bottom: 12px; font-size: 1.05rem; }
 
-  /* Sections de la sidebar */
-  .sidebar-section {
-    padding: 15px;
-    border-bottom: 1px solid #e0e0e0;
-  }
-
-  .sidebar-section h5 {
-    color: var(--couleur-primaire);
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
-
-  /* ============================================ */
-  /* CARTES STATISTIQUES */
-  /* ============================================ */
   .stat-card {
-    background: linear-gradient(
-      135deg,
-      var(--couleur-primaire),
-      var(--couleur-secondaire)
-    );
-    color: white;
-    padding: 15px;
-    border-radius: 8px;
-    margin-bottom: 10px;
+    background: linear-gradient(135deg, var(--couleur-primaire), var(--couleur-secondaire));
+    color: #fff; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 6px 14px rgba(0,0,0,.08);
   }
+  .stat-label { font-size: .92rem; opacity: .95; }
+  .stat-number { font-size: 24px; font-weight: 700; }
 
-  .stat-number {
-    font-size: 24px;
-    font-weight: bold;
-  }
-
-  /* ============================================ */
-  /* BARRE DE RECHERCHE FLOTTANTE AU-DESSUS CARTE */
-  /* ============================================ */
   .search-overlay {
-    position: fixed;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1500;
-    pointer-events: none; /* Permet de cliquer à travers l'overlay */
+    position: fixed; top: 78px; left: 50%; transform: translateX(-50%); z-index: 1200;
+    width: min(560px, calc(100vw - 40px)); pointer-events: none;
   }
-
   .search-container {
-    display: flex;
-    align-items: center;
-    background: white;
-    padding: 8px 15px;
-    border-radius: 50px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    min-width: 450px;
-    pointer-events: auto; /* Réactive les clics sur le conteneur */
-    transition: all 0.3s ease;
-    position: relative;
+    position: relative; display: flex; align-items: center; width: 100%; padding: 8px 12px;
+    background: rgba(255,255,255,.96); border-radius: 18px; box-shadow: 0 8px 22px rgba(0,0,0,.14);
+    backdrop-filter: blur(6px); pointer-events: auto;
   }
-
-  .search-container:hover {
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+  .search-icon { color: var(--couleur-primaire); font-size: 16px; margin-right: 8px; flex: 0 0 auto; }
+  .search-input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-size: 14px; padding: 6px 4px; }
+  .search-input::placeholder { color: #909090; }
+  .search-btn, .search-clear-btn {
+    width: 40px; height: 40px; flex: 0 0 40px; margin-left: 6px; border: none; border-radius: 50%;
+    color: #fff; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    transition: all .25s ease;
   }
+  .search-btn { background: var(--couleur-primaire); }
+  .search-btn:hover { background: var(--couleur-secondaire); transform: scale(1.05); }
+  .search-clear-btn { background: #e74c3c; }
+  .search-clear-btn:hover { background: #c0392b; transform: scale(1.05); }
 
-  .search-icon {
-    color: var(--couleur-primaire);
-    font-size: 18px;
-    margin-right: 10px;
-  }
-
-  .search-input {
-    flex: 1;
-    border: none;
-    outline: none;
-    font-size: 15px;
-    padding: 8px;
-    background: transparent;
-  }
-
-  .search-input::placeholder {
-    color: #999;
-  }
-
-  .search-btn,
-  .search-clear-btn {
-    background: var(--couleur-primaire);
-    color: white;
-    border: none;
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 5px;
-    transition: all 0.3s ease;
-  }
-
-  .search-btn:hover {
-    background: var(--couleur-secondaire);
-    transform: scale(1.1);
-  }
-
-  .search-clear-btn {
-    background: #e74c3c;
-  }
-
-  .search-clear-btn:hover {
-    background: #c0392b;
-    transform: scale(1.1);
-  }
-
-  /* ============================================ */
-  /* AUTOCOMPLÉTION POUR LA RECHERCHE */
-  /* ============================================ */
   .search-autocomplete {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: white;
-    border-radius: 15px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    margin-top: 8px;
-    max-height: 300px;
-    overflow-y: auto;
-    display: none;
-    z-index: 2000;
+    position: absolute; top: calc(100% + 8px); left: 0; right: 0; display: none; max-height: 280px; overflow-y: auto;
+    background: #fff; border-radius: 14px; box-shadow: 0 8px 22px rgba(0,0,0,.14); z-index: 1250;
   }
-
-  .search-autocomplete.show {
-    display: block;
-  }
-
+  .search-autocomplete.show { display: block; }
   .autocomplete-item {
-    padding: 12px 20px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    border-bottom: 1px solid #f0f0f0;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    display: flex; align-items: center; gap: 10px; padding: 12px 16px; cursor: pointer;
+    border-bottom: 1px solid #f0f0f0; transition: all .2s ease;
   }
+  .autocomplete-item:last-child { border-bottom: none; }
+  .autocomplete-item:hover { background: linear-gradient(90deg, var(--couleur-primaire), var(--couleur-secondaire)); color: #fff; }
+  .autocomplete-item i { color: var(--couleur-primaire); font-size: 14px; }
+  .autocomplete-item:hover i { color: #fff; }
+  .zone-name { flex: 1; font-weight: 600; }
+  .zone-type { font-size: 12px; color: #666; background: #f0f0f0; padding: 2px 8px; border-radius: 10px; }
+  .autocomplete-item:hover .zone-type { background: rgba(255,255,255,.25); color: #fff; }
+  .autocomplete-empty { padding: 14px 16px; text-align: center; color: #999; font-style: italic; }
 
-  .autocomplete-item:last-child {
-    border-bottom: none;
-  }
+  .leaflet-control-layers { background: #fff; padding: 10px; border-radius: 10px; }
+  .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 78px; margin-right: 12px; }
+  .leaflet-top.leaflet-right .leaflet-control-zoom { margin-top: 150px; margin-right: 12px; }
 
-  .autocomplete-item:hover {
-    background: linear-gradient(
-      90deg,
-      var(--couleur-primaire),
-      var(--couleur-secondaire)
-    );
-    color: white;
-  }
-
-  .autocomplete-item i {
-    color: var(--couleur-primaire);
-    font-size: 14px;
-  }
-
-  .autocomplete-item:hover i {
-    color: white;
-  }
-
-  .autocomplete-item .zone-name {
-    font-weight: 600;
-    flex: 1;
-  }
-
-  .autocomplete-item .zone-type {
-    font-size: 12px;
-    color: #666;
-    background: #f0f0f0;
-    padding: 2px 8px;
-    border-radius: 10px;
-  }
-
-  .autocomplete-item:hover .zone-type {
-    background: rgba(255, 255, 255, 0.3);
-    color: white;
-  }
-
-  .autocomplete-empty {
-    padding: 15px 20px;
-    text-align: center;
-    color: #999;
-    font-style: italic;
-  }
-
-  /* Responsive : sur petits écrans */
-  @media (max-width: 768px) {
-    .search-overlay {
-      left: 0;
-      right: 0;
-      transform: none;
-      padding: 0 15px;
-    }
-
-    .search-container {
-      min-width: auto;
-      width: 100%;
-    }
-  }
-
-  /* ============================================ */
-  /* CONTRÔLES DE LA CARTE */
-  /* ============================================ */
-  .leaflet-control-layers {
-    background: white;
-    padding: 10px;
-    border-radius: 5px;
-  }
-
-  /* ============================================ */
-  /* LÉGENDE */
-  /* ============================================ */
-  .legend {
-    background: white;
-    padding: 10px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  }
-
-  .legend-item {
-    display: flex;
-    align-items: center;
-    margin-bottom: 5px;
-  }
-
-  .legend-color {
-    width: 20px;
-    height: 20px;
-    margin-right: 10px;
-    border: 1px solid #ccc;
-    border-radius: 3px;
-  }
-
-  /* ============================================ */
-  /* NORD GÉOGRAPHIQUE */
-  /* ============================================ */
   .north-arrow {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    z-index: 2500;
-    background: white;
-    padding: 10px;
-    border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    pointer-events: none;
+    position: absolute; top: 16px; right: 15px; z-index: 1100; text-align: center; pointer-events: none;
+    background: #fff; padding: 10px; border-radius: 8px; box-shadow: 0 3px 10px rgba(0,0,0,.2);
   }
+  .north-arrow i { font-size: 24px; color: var(--couleur-primaire); }
 
-  /* Descendre les FONDS CARTO sous le nord */
-  .leaflet-top.leaflet-right .leaflet-control-layers {
-    margin-top: 80px;
-  }
+  .legend-item { display: flex; align-items: center; margin-bottom: 6px; }
+  .legend-color { width: 18px; height: 18px; flex: 0 0 18px; margin-right: 10px; border: 1px solid #ccc; border-radius: 3px; }
+  .custom-popup h6 { color: var(--couleur-primaire); font-weight: 700; margin-bottom: 10px; }
+  .custom-popup table { width: 100%; }
+  .custom-popup td { padding: 3px 5px; vertical-align: top; }
 
-  /* Descendre le ZOOM sous les fonds carto */
-  .leaflet-top.leaflet-right .leaflet-control-zoom {
-    margin-top: 170px;
-  }
-
-  .north-arrow i {
-    font-size: 24px;
-    color: var(--couleur-primaire);
-  }
-
-  /* ============================================ */
-  /* POPUP PERSONNALISÉE */
-  /* ============================================ */
-  .custom-popup h6 {
-    color: var(--couleur-primaire);
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
-
-  .custom-popup table {
-    width: 100%;
-  }
-
-  .custom-popup td {
-    padding: 3px 5px;
-  }
-
-  /* ============================================ */
-  /* CONTRÔLE DE TRANSPARENCE */
-  /* ============================================ */
-  .transparency-control {
-    background: white;
-    padding: 10px;
-    border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  }
-
-  /* ============================================ */
-  /* GÉOLOCALISATION PAR COORDONNÉES */
-  /* ============================================ */
   .coord-search-card {
-    background: linear-gradient(135deg, #f8f9fa, #e9ecef);
-    border-left: 4px solid var(--couleur-primaire);
-    padding: 15px;
-    margin-bottom: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    background: linear-gradient(135deg, #f8f9fa, #eef2f6); border-left: 4px solid var(--couleur-primaire);
+    padding: 15px; margin-bottom: 15px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,.08);
   }
-
-  .coord-search-card h5 {
-    color: var(--couleur-primaire);
-    font-weight: bold;
-    margin-bottom: 15px;
-    font-size: 0.95rem;
-  }
-
-  /* Tabs pour sélectionner le format */
   .coord-format-tabs {
-    display: flex;
-    gap: 5px;
-    margin-bottom: 15px;
-    background: #fff;
-    padding: 3px;
-    border-radius: 6px;
-    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    display: flex; gap: 5px; margin-bottom: 15px; background: #fff; padding: 3px; border-radius: 8px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,.08);
   }
-
   .coord-format-tab {
-    flex: 1;
-    padding: 6px 10px;
-    font-size: 0.8rem;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.3s;
-    color: #666;
+    flex: 1; border: none; border-radius: 6px; background: transparent; color: #666; cursor: pointer;
+    padding: 7px 10px; font-size: .82rem; transition: all .25s;
+  }
+  .coord-format-tab.active { background: var(--couleur-primaire); color: #fff; font-weight: 700; }
+  .coord-format-container { display: none; }
+  .coord-format-container.active { display: block; }
+  .coord-format-container .mb-2 {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; align-items: end; margin-bottom: 10px !important;
+  }
+  .coord-format-container .mb-2 > label {
+    grid-column: 1 / -1; margin-bottom: 0; font-size: .85rem; font-weight: 600; color: #495057;
+  }
+  .coord-format-container input,
+  .coord-format-container select,
+  .decimal-input-group input {
+    width: 100%; padding: 7px 8px; font-size: .86rem; border: 1px solid #ced4da; border-radius: 6px; background: #fff;
+  }
+  .decimal-input-group { display: flex; gap: 8px; margin-bottom: 10px; }
+  .coord-field { flex: 1; display: flex; flex-direction: column; }
+  .coord-field label { font-size: .78rem; color: #666; margin-bottom: 4px; }
+  .coord-buttons { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .coord-buttons button { flex: 1; min-width: 90px; padding: 8px; font-size: .84rem; }
+  .btn-gps { background: linear-gradient(135deg, #4caf50, #45a049); color: #fff; border: none; }
+  .btn-gps:hover { background: linear-gradient(135deg, #45a049, #3d8b40); }
+
+  .point-info-result { display: none; margin-top: 15px; padding: 12px; border-radius: 8px; font-size: .85rem; animation: slideDown .25s ease; }
+  .point-info-result.success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+  .point-info-result.error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+  .point-info-result.not-found { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+  .point-info-result strong { display: block; margin-bottom: 5px; font-size: .9rem; }
+  .point-info-result table { width: 100%; margin-top: 8px; }
+  .point-info-result td { padding: 4px; font-size: .8rem; vertical-align: top; }
+  @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .custom-marker { background: transparent; border: none; }
+  .custom-marker i { filter: drop-shadow(0 2px 4px rgba(0,0,0,.3)); animation: bounce 2s infinite; }
+  @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+  #tile-warning {
+    display: none; position: fixed; top: 84px; right: 18px; z-index: 1750; max-width: 320px;
+    background: #fff3cd; color: #856404; padding: 10px 14px; border: 1px solid #ffeeba;
+    border-radius: 8px; box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  }
+  .map-loading {
+    position: fixed; top: 90px; right: 20px; z-index: 1800; display: flex; align-items: center; gap: 10px;
+    background: rgba(255,255,255,.95); padding: 12px 16px; border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12); backdrop-filter: blur(6px);
+  }
+  .map-loading.d-none { display: none !important; }
+
+  @media (max-width: 992px) {
+    #sidebar { width: min(86vw, 320px); }
+    #sidebar-toggle { left: min(86vw, 320px); }
   }
 
-  .coord-format-tab.active {
-    background: var(--couleur-primaire);
-    color: white;
-    font-weight: bold;
+  @media (max-width: 768px) {
+    .header-dguvt .container-fluid { padding-top: 8px; padding-bottom: 8px; gap: 8px; }
+    .header-dguvt h4 { font-size: 1rem; }
+    .header-dguvt small, .header-dguvt #user-name { display: none; }
+    .header-dguvt .btn { font-size: .78rem; padding: .35rem .55rem; white-space: nowrap; }
+
+    .search-overlay { top: 92px; width: calc(100vw - 24px); }
+    .search-container { padding: 6px 10px; border-radius: 16px; }
+    .search-btn, .search-clear-btn { width: 42px; height: 42px; flex-basis: 42px; margin-left: 5px; }
+
+    #sidebar { top: 60px; width: min(88vw, 320px); height: calc(100vh - 60px); }
+    #sidebar-toggle { top: 72px; left: 12px; width: 42px; height: 42px; border-radius: 10px; }
+
+    .leaflet-top.leaflet-right .leaflet-control-layers { margin-top: 132px; margin-right: 10px; }
+    .leaflet-top.leaflet-right .leaflet-control-zoom { margin-top: 204px; margin-right: 10px; }
+    .north-arrow { top: 18px; right: 10px; padding: 8px; }
+    #tile-warning { top: 144px; right: 10px; max-width: calc(100vw - 20px); }
+    .map-loading { top: 142px; right: 10px; left: 10px; justify-content: center; }
   }
 
-  .coord-format-tab:hover:not(.active) {
-    background: rgba(0, 0, 0, 0.05);
-  }
-
-  /* Conteneur de format */
-  .coord-format-container {
-    display: none;
-  }
-
-  .coord-format-container.active {
-    display: block;
-  }
-
-  /* Groupe de coordonnées DMS */
-  .coord-input-group {
-    display: flex;
-    gap: 5px;
-    margin-bottom: 8px;
-    align-items: flex-end;
-  }
-
-  .coord-field {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .coord-field label {
-    font-size: 0.7rem;
-    color: #666;
-    margin-bottom: 2px;
-    display: block;
-  }
-
-  .coord-field input {
-    padding: 6px 8px;
-    font-size: 0.85rem;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    width: 100%;
-  }
-
-  .coord-field select {
-    padding: 6px 8px;
-    font-size: 0.85rem;
-    border: 1px solid #ced4da;
-    border-radius: 4px;
-    background: white;
-    cursor: pointer;
-  }
-
-  /* Groupe pour degrés décimaux */
-  .decimal-input-group {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .decimal-input-group .coord-field {
-    flex: 1;
-  }
-
-  /* Boutons d'action */
-  .coord-buttons {
-    display: flex;
-    gap: 8px;
-    margin-top: 10px;
-  }
-
-  .coord-buttons button {
-    flex: 1;
-    padding: 8px;
-    font-size: 0.85rem;
-  }
-
-  /* Bouton GPS */
-  .btn-gps {
-    background: linear-gradient(135deg, #4caf50, #45a049);
-    color: white;
-    border: none;
-  }
-
-  .btn-gps:hover {
-    background: linear-gradient(135deg, #45a049, #3d8b40);
-  }
-
-  /* Résultat de la recherche */
-  .point-info-result {
-    margin-top: 15px;
-    padding: 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    display: none;
-    animation: slideDown 0.3s ease;
-  }
-
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .point-info-result.success {
-    background-color: #d4edda;
-    border: 1px solid #c3e6cb;
-    color: #155724;
-  }
-
-  .point-info-result.error {
-    background-color: #f8d7da;
-    border: 1px solid #f5c6cb;
-    color: #721c24;
-  }
-
-  .point-info-result.not-found {
-    background-color: #fff3cd;
-    border: 1px solid #ffeaa7;
-    color: #856404;
-  }
-
-  .point-info-result strong {
-    display: block;
-    margin-bottom: 5px;
-    font-size: 0.9rem;
-  }
-
-  .point-info-result table {
-    width: 100%;
-    margin-top: 8px;
-  }
-
-  .point-info-result td {
-    padding: 4px;
-    font-size: 0.8rem;
-  }
-
-  /* Marqueur personnalisé sur la carte */
-  .custom-marker {
-    background: transparent;
-    border: none;
-  }
-
-  .custom-marker i {
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-    animation: bounce 2s infinite;
-  }
-
-  @keyframes bounce {
-    0%,
-    100% {
-      transform: translateY(0);
-    }
-    50% {
-      transform: translateY(-10px);
-    }
+  @media (max-width: 480px) {
+    .coord-format-container .mb-2 { grid-template-columns: repeat(2, 1fr); }
+    .decimal-input-group { flex-direction: column; }
+    .sidebar-section { padding: 13px; }
   }
 </style>
-{% endblock %} {% block header %}
+{% endblock %}
+
+{% block header %}
 <nav class="header-dguvt">
-  <div
-    class="container-fluid d-flex justify-content-between align-items-center"
-  >
+  <div class="container-fluid d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center">
       <i class="fas fa-map-marked-alt fa-2x me-3"></i>
       <div>
@@ -581,352 +198,138 @@
       </div>
     </div>
     <div class="d-flex align-items-center">
-      <span class="me-3">
-        <i class="fas fa-user me-2"></i>
-        <span id="user-name">Chargement...</span>
-      </span>
-
-      <!-- Menu Admin : caché par défaut -->
-      <a
-        id="admin-menu"
-        href="/administration/"
-        class="btn btn-warning btn-sm me-2 d-none"
-      >
-        <i class="fas fa-user-shield me-1"></i>
-        Admin
+      <span class="me-3"><i class="fas fa-user me-2"></i><span id="user-name">Chargement...</span></span>
+      <a id="admin-menu" href="/administration/" class="btn btn-warning btn-sm me-2 d-none">
+        <i class="fas fa-user-shield me-1"></i>Admin
       </a>
-
       <button class="btn btn-light btn-sm" onclick="logout()">
-        <i class="fas fa-sign-out-alt me-1"></i>
-        Déconnexion
+        <i class="fas fa-sign-out-alt me-1"></i>Déconnexion
       </button>
     </div>
   </div>
 </nav>
-{% endblock %} {% block content %}
-<!-- ============================================ -->
-<!-- BOUTON TOGGLE SIDEBAR -->
-<!-- ============================================ -->
-<button id="sidebar-toggle" onclick="toggleSidebar()">
-  <i class="fas fa-bars"></i>
-</button>
+{% endblock %}
 
-<!-- ============================================ -->
-<!-- BARRE DE RECHERCHE FLOTTANTE AU-DESSUS CARTE -->
-<!-- ============================================ -->
+{% block content %}
+<button id="sidebar-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+
 <div class="search-overlay">
   <div class="search-container">
-    <!-- Icône de recherche -->
     <i class="fas fa-search search-icon"></i>
-
-    <!-- Champ de saisie avec autocomplétion -->
-    <input
-      type="text"
-      id="search-zone"
-      placeholder="Rechercher une zone par nom..."
-      class="search-input"
-      autocomplete="off"
-      oninput="handleSearchInput()"
-      onkeypress="handleSearchKeypress(event)"
-    />
-
-    <!-- Bouton de recherche -->
-    <button onclick="applyFilters()" class="search-btn" title="Rechercher">
-      <i class="fas fa-arrow-right"></i>
-    </button>
-
-    <!-- Bouton d'effacement -->
-    <button
-      onclick="resetSearchOnly()"
-      class="search-clear-btn"
-      title="Effacer"
-    >
-      <i class="fas fa-times"></i>
-    </button>
-
-    <!-- Liste d'autocomplétion -->
+    <input type="text" id="search-zone" placeholder="Rechercher une zone par nom..." class="search-input"
+           autocomplete="off" oninput="handleSearchInput()" onkeypress="handleSearchKeypress(event)" />
+    <button onclick="applyFilters()" class="search-btn" title="Rechercher"><i class="fas fa-arrow-right"></i></button>
+    <button onclick="resetSearchOnly()" class="search-clear-btn" title="Effacer"><i class="fas fa-times"></i></button>
     <div id="search-autocomplete" class="search-autocomplete"></div>
   </div>
 </div>
 
-<!-- ============================================ -->
-<!-- SIDEBAR / TABLEAU DE BORD -->
-<!-- ============================================ -->
 <div id="sidebar">
-  <!-- ==================== -->
-  <!-- GÉOLOCALISATION PAR COORDONNÉES -->
-  <!-- ==================== -->
   <div class="sidebar-section">
     <h5><i class="fas fa-map-pin me-2"></i>Géolocaliser un point</h5>
-
     <div class="coord-search-card">
-      <!-- Tabs pour choisir entre DMS et Décimal -->
       <div class="coord-format-tabs">
-        <button
-          class="coord-format-tab active"
-          onclick="switchCoordFormat('dms')"
-          id="tab-dms"
-        >
-          DMS
-        </button>
-        <button
-          class="coord-format-tab"
-          onclick="switchCoordFormat('decimal')"
-          id="tab-decimal"
-        >
-          Décimal
-        </button>
+        <button class="coord-format-tab active" onclick="switchCoordFormat('dms')" id="tab-dms" type="button">DMS</button>
+        <button class="coord-format-tab" onclick="switchCoordFormat('decimal')" id="tab-decimal" type="button">Décimal</button>
       </div>
 
-      <!-- Format DMS (Degrés Minutes Secondes) -->
       <div id="format-dms" class="coord-format-container active">
-        <!-- Longitude -->
         <div class="mb-2">
           <label>Longitude (X)</label>
-          <input
-            type="number"
-            id="lon-deg-dms"
-            placeholder="0"
-            min="0"
-            max="180"
-            value="0"
-          />
-          <input
-            type="number"
-            id="lon-min-dms"
-            placeholder="0"
-            min="0"
-            max="59"
-            value="37"
-          />
-          <input
-            type="number"
-            id="lon-sec-dms"
-            placeholder="0"
-            min="0"
-            max="59"
-            value="0"
-          />
-          <select id="lon-dir-dms">
-            <option value="W" selected>W</option>
-            <option value="E">E</option>
-          </select>
+          <input type="number" id="lon-deg-dms" placeholder="0" min="0" max="180" value="0" />
+          <input type="number" id="lon-min-dms" placeholder="0" min="0" max="59" value="37" />
+          <input type="number" id="lon-sec-dms" placeholder="0" min="0" max="59" value="0" />
+          <select id="lon-dir-dms"><option value="W" selected>W</option><option value="E">E</option></select>
         </div>
-
-        <!-- Latitude -->
         <div class="mb-2">
           <label>Latitude (Y)</label>
-          <input
-            type="number"
-            id="lat-deg-dms"
-            placeholder="0"
-            min="0"
-            max="90"
-            value="12"
-          />
-          <input
-            type="number"
-            id="lat-min-dms"
-            placeholder="0"
-            min="0"
-            max="59"
-            value="15"
-          />
-          <input
-            type="number"
-            id="lat-sec-dms"
-            placeholder="0"
-            min="0"
-            max="59"
-            value="0"
-          />
-          <select id="lat-dir-dms">
-            <option value="N" selected>N</option>
-            <option value="S">S</option>
-          </select>
+          <input type="number" id="lat-deg-dms" placeholder="0" min="0" max="90" value="12" />
+          <input type="number" id="lat-min-dms" placeholder="0" min="0" max="59" value="15" />
+          <input type="number" id="lat-sec-dms" placeholder="0" min="0" max="59" value="0" />
+          <select id="lat-dir-dms"><option value="N" selected>N</option><option value="S">S</option></select>
         </div>
       </div>
 
-      <!-- Format Décimal -->
       <div id="format-decimal" class="coord-format-container">
         <div class="decimal-input-group">
           <div class="coord-field">
             <label>Longitude (X)</label>
-            <input
-              type="number"
-              id="lon-decimal"
-              value="-0.6167"
-              step="0.000001"
-            />
+            <input type="number" id="lon-decimal" value="-0.6167" step="0.000001" />
           </div>
           <div class="coord-field">
             <label>Latitude (Y)</label>
-            <input
-              type="number"
-              id="lat-decimal"
-              value="12.2500"
-              step="0.000001"
-            />
+            <input type="number" id="lat-decimal" value="12.2500" step="0.000001" />
           </div>
         </div>
       </div>
 
-      <!-- Boutons d'action -->
       <div class="coord-buttons">
-        <button class="btn btn-primary btn-sm" onclick="localiserPoint()">
-          <i class="fas fa-map-marker-alt me-1"></i>Localiser
-        </button>
-        <button
-          class="btn btn-success btn-sm btn-gps"
-          onclick="utiliserMaPosition()"
-        >
-          <i class="fas fa-crosshairs me-1"></i>GPS
-        </button>
-        <button class="btn btn-secondary btn-sm" onclick="effacerCoordonnees()">
-          <i class="fas fa-eraser me-1"></i>Effacer
-        </button>
+        <button class="btn btn-primary btn-sm" onclick="localiserPoint()" type="button"><i class="fas fa-map-marker-alt me-1"></i>Localiser</button>
+        <button class="btn btn-success btn-sm btn-gps" onclick="utiliserMaPosition()" type="button"><i class="fas fa-crosshairs me-1"></i>GPS</button>
+        <button class="btn btn-secondary btn-sm" onclick="effacerCoordonnees()" type="button"><i class="fas fa-eraser me-1"></i>Effacer</button>
       </div>
 
-      <!-- Résultat de la géolocalisation -->
       <div id="point-info-result" class="point-info-result"></div>
     </div>
   </div>
 
-  <!-- ==================== -->
-  <!-- STATISTIQUES -->
-  <!-- ==================== -->
   <div class="sidebar-section">
     <h5><i class="fas fa-chart-bar me-2"></i>Statistiques</h5>
-
-    <!-- Nombre total d'enttités -->
-    <div class="stat-card">
-      <div class="stat-label">Nombre total d'entités</div>
-      <div class="stat-number" id="total-zones">-</div>
-    </div>
-
-    <!-- Superficie totale -->
-    <div class="stat-card">
-      <div class="stat-label">Superficie totale</div>
-      <div class="stat-number" id="superficie-totale">-</div>
-    </div>
+    <div class="stat-card"><div class="stat-label">Nombre total d'entités</div><div class="stat-number" id="total-zones">-</div></div>
+    <div class="stat-card"><div class="stat-label">Superficie totale</div><div class="stat-number" id="superficie-totale">-</div></div>
   </div>
 
-  <!-- ==================== -->
-  <!-- FILTRES AVANCÉS -->
-  <!-- ==================== -->
   <div class="sidebar-section">
     <h5><i class="fas fa-filter me-2"></i>Filtres</h5>
-
-    <!-- Filtre par secteur -->
     <div class="mb-2">
-      <label class="form-label"
-        ><small><i class="fas fa-layer-group me-1"></i>Secteur</small></label
-      >
-      <select id="filter-secteur" class="form-select form-select-sm">
-        <option value="">Tous les secteurs</option>
-      </select>
+      <label class="form-label"><small><i class="fas fa-layer-group me-1"></i>Secteur</small></label>
+      <select id="filter-secteur" class="form-select form-select-sm"><option value="">Tous les secteurs</option></select>
     </div>
-
-    <!-- Filtre par type de zone -->
     <div class="mb-2">
-      <label class="form-label"
-        ><small><i class="fas fa-tag me-1"></i>Type de zone</small></label
-      >
-      <select id="filter-type" class="form-select form-select-sm">
-        <option value="">Tous les types</option>
-      </select>
+      <label class="form-label"><small><i class="fas fa-tag me-1"></i>Type de zone</small></label>
+      <select id="filter-type" class="form-select form-select-sm"><option value="">Tous les types</option></select>
     </div>
-
-    <!-- Filtre par statut -->
     <div class="mb-2">
-      <label class="form-label"
-        ><small><i class="fas fa-check-circle me-1"></i>Statut</small></label
-      >
-      <select id="filter-statut" class="form-select form-select-sm">
-        <option value="">Tous les statuts</option>
-      </select>
+      <label class="form-label"><small><i class="fas fa-check-circle me-1"></i>Statut</small></label>
+      <select id="filter-statut" class="form-select form-select-sm"><option value="">Tous les statuts</option></select>
     </div>
-
-    <!-- Boutons d'action -->
     <div class="d-flex gap-2 mt-3">
-      <button class="btn btn-primary btn-sm flex-fill" onclick="applyFilters()">
-        <i class="fas fa-check me-1"></i>Appliquer
-      </button>
-      <button
-        class="btn btn-secondary btn-sm flex-fill"
-        onclick="resetFilters()"
-      >
-        <i class="fas fa-redo me-1"></i>Réinitialiser
-      </button>
+      <button class="btn btn-primary btn-sm flex-fill" onclick="applyFilters()" type="button"><i class="fas fa-check me-1"></i>Appliquer</button>
+      <button class="btn btn-secondary btn-sm flex-fill" onclick="resetFilters()" type="button"><i class="fas fa-redo me-1"></i>Réinitialiser</button>
     </div>
   </div>
 
-  <!-- ==================== -->
-  <!-- CONTRÔLE DE TRANSPARENCE -->
-  <!-- ==================== -->
   <div class="sidebar-section">
     <h5><i class="fas fa-adjust me-2"></i>Transparence</h5>
-    <input
-      type="range"
-      id="opacity-slider"
-      min="0"
-      max="100"
-      value="70"
-      oninput="updateOpacity(this.value)"
-      class="form-range"
-    />
+    <input type="range" id="opacity-slider" min="0" max="100" value="70" oninput="updateOpacity(this.value)" class="form-range" />
     <span id="opacity-value">70</span>%
   </div>
 
-  <!-- ==================== -->
-  <!-- LÉGENDE -->
-  <!-- ==================== -->
   <div class="sidebar-section">
     <h5><i class="fas fa-list me-2"></i>Légende</h5>
     <div id="legend-container"></div>
   </div>
 </div>
 
-<div id="tile-warning"
-     style="display:none; position:absolute; top:80px; right:20px; z-index:1000;
-            background:#fff3cd; color:#856404; padding:10px 14px; border:1px solid #ffeeba;
-            border-radius:6px; max-width:320px;">
+<div id="tile-warning"></div>
+<div id="map-loading" class="map-loading d-none">
+  <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+  <span id="map-loading-text">Chargement de la carte...</span>
 </div>
-
-<!-- ============================================ -->
-<!-- CARTE PRINCIPALE -->
-<!-- ============================================ -->
 <div id="map">
-  <!-- Nord géographique -->
-  <div class="north-arrow">
-    <i class="fas fa-arrow-up"></i>
-    <div>
-      <small><strong>N</strong></small>
-    </div>
-  </div>
+  <div class="north-arrow"><i class="fas fa-arrow-up"></i><div><small><strong>N</strong></small></div></div>
 </div>
-{% endblock %} {% block footer %}
-<!-- Pas de footer sur la page carte -->
+{% endblock %}
+
+{% block footer %}{% endblock %}
+
 {% block extra_js %}
 <script>
-  // ============================================
-  // VARIABLES GLOBALES
-  // ============================================
-  let map;
-  let zonesLayer;
-  let secteursLayer;
-  let currentData = [];
-  let pointMarker = null;
-  let currentCoordFormat = "dms";
-  let currentOpacity = 0.7;
+  let map, zonesLayer, secteursLayer, pointMarker = null;
+  let currentData = [], currentCoordFormat = "dms", currentOpacity = 0.7, searchDebounceTimer = null;
+  let osmLayer = null, satelliteLayer = null, cartoDBLayer = null;
+  const DEFAULT_CENTER = [12.25, -0.6167], DEFAULT_ZOOM = 13;
 
-  let osmLayer = null;
-  let satelliteLayer = null;
-  let cartoDBLayer = null;
-
-  // ============================================
-  // FONCTION : Récupérer le token CSRF
-  // ============================================
   function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== "") {
@@ -942,518 +345,294 @@
     return cookieValue;
   }
 
-  // ============================================
-  // AFFICHAGE D'ALERTE TUILES
-  // ============================================
+  function setMapLoading(isLoading, message = "Chargement...") {
+    const loader = document.getElementById("map-loading");
+    const text = document.getElementById("map-loading-text");
+    if (text) text.textContent = message;
+    if (loader) loader.classList.toggle("d-none", !isLoading);
+  }
+
   function showTileWarning(message) {
-    console.warn(message);
     const warning = document.getElementById("tile-warning");
-    if (warning) {
-      warning.textContent = message;
-      warning.style.display = "block";
-    }
+    if (!warning) return;
+    warning.textContent = message;
+    warning.style.display = "block";
   }
 
   function hideTileWarning() {
     const warning = document.getElementById("tile-warning");
-    if (warning) {
-      warning.textContent = "";
-      warning.style.display = "none";
-    }
+    if (!warning) return;
+    warning.textContent = "";
+    warning.style.display = "none";
   }
 
-  // ============================================
-  // FONCTION : Toggle Sidebar (Ouvrir/Fermer)
-  // ============================================
-  function toggleSidebar() {
+  function showPointResult(type, html) {
+    const resultDiv = document.getElementById("point-info-result");
+    if (!resultDiv) return;
+    resultDiv.className = `point-info-result ${type}`;
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = "block";
+  }
+
+  function clearPointResult() {
+    const resultDiv = document.getElementById("point-info-result");
+    if (!resultDiv) return;
+    resultDiv.className = "point-info-result";
+    resultDiv.innerHTML = "";
+    resultDiv.style.display = "none";
+  }
+
+  function getSidebarWidth() {
+    if (window.innerWidth <= 768) return Math.min(window.innerWidth * 0.88, 320);
+    if (window.innerWidth <= 992) return Math.min(window.innerWidth * 0.86, 320);
+    return 350;
+  }
+
+  function updateSidebarLayout() {
     const sidebar = document.getElementById("sidebar");
     const toggle = document.getElementById("sidebar-toggle");
+    if (!sidebar || !toggle) return;
 
-    if (sidebar && toggle) {
-      sidebar.classList.toggle("closed");
-      toggle.classList.toggle("closed");
+    const sidebarWidth = getSidebarWidth();
+    sidebar.style.width = `${sidebarWidth}px`;
+
+    if (sidebar.classList.contains("closed")) {
+      toggle.classList.add("closed");
+      toggle.style.left = "12px";
+    } else {
+      toggle.classList.remove("closed");
+      toggle.style.left = `${sidebarWidth}px`;
+    }
+
+    if (map) {
+      setTimeout(() => map.invalidateSize(), 320);
     }
   }
 
-  // ============================================
-  // FONCTION : Charger le nom d'utilisateur
-  // ============================================
+  function toggleSidebar(forceClosed = null) {
+    const sidebar = document.getElementById("sidebar");
+    if (!sidebar) return;
+    if (forceClosed === true) sidebar.classList.add("closed");
+    else if (forceClosed === false) sidebar.classList.remove("closed");
+    else sidebar.classList.toggle("closed");
+    updateSidebarLayout();
+  }
+
   async function loadUserName() {
     try {
       const response = await fetch("/api/utilisateurs/me/", {
         credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" }
       });
+      const userNameElement = document.getElementById("user-name");
+      const adminMenu = document.getElementById("admin-menu");
 
-      if (response.ok) {
-        const user = await response.json();
+      if (!response.ok) {
+        if (userNameElement) userNameElement.textContent = "Utilisateur";
+        return;
+      }
 
-        const userNameElement = document.getElementById("user-name");
-        if (userNameElement) {
-          userNameElement.textContent =
-            `${user.prenom || ""} ${user.nom || ""}`.trim() ||
-            user.email ||
-            "Utilisateur";
-        }
-
-        const adminMenu = document.getElementById("admin-menu");
-        if (adminMenu) {
-          const isAdmin =
-            user.role === "admin" ||
-            user.is_staff === true ||
-            user.is_superuser === true;
-
-          if (isAdmin) {
-            adminMenu.classList.remove("d-none");
-          } else {
-            adminMenu.classList.add("d-none");
-          }
-        }
-      } else {
-        console.warn("Impossible de charger les infos utilisateur");
-        const userNameElement = document.getElementById("user-name");
-        if (userNameElement) {
-          userNameElement.textContent = "Utilisateur";
-        }
+      const user = await response.json();
+      if (userNameElement) userNameElement.textContent = `${user.prenom || ""} ${user.nom || ""}`.trim() || user.email || "Utilisateur";
+      if (adminMenu) {
+        const isAdmin = user.role === "admin" || user.is_staff === true || user.is_superuser === true;
+        adminMenu.classList.toggle("d-none", !isAdmin);
       }
     } catch (error) {
-      console.error("❌ Erreur lors du chargement de l'utilisateur:", error);
-
+      console.error("Erreur chargement utilisateur :", error);
       const userNameElement = document.getElementById("user-name");
-      if (userNameElement) {
-        userNameElement.textContent = "Utilisateur";
-      }
+      if (userNameElement) userNameElement.textContent = "Utilisateur";
     }
   }
 
-  // ============================================
-  // FONCTION : Déconnexion
-  // ============================================
   async function logout() {
     try {
-      const response = await fetch("/api/auth/logout/", {
+      await fetch("/api/auth/logout/", {
         method: "POST",
         credentials: "same-origin",
-        headers: {
-          "X-CSRFToken": getCookie("csrftoken"),
-        },
+        headers: { "X-CSRFToken": getCookie("csrftoken") }
       });
-
-      if (response.ok) {
-        window.location.href = "/login/";
-      } else {
-        window.location.href = "/login/";
-      }
     } catch (error) {
-      console.error("Erreur lors de la déconnexion:", error);
+      console.error("Erreur lors de la déconnexion :", error);
+    } finally {
       window.location.href = "/login/";
     }
   }
 
-  // ============================================
-  // FONCTION : Attacher les événements des couches raster
-  // ============================================
   function bindBaseLayerEvents() {
-    const layers = [osmLayer, satelliteLayer, cartoDBLayer].filter(Boolean);
-
-    layers.forEach((layer) => {
-      layer.on("tileload", () => {
-        hideTileWarning();
-      });
-
+    [osmLayer, satelliteLayer, cartoDBLayer].filter(Boolean).forEach((layer) => {
+      layer.on("tileload", hideTileWarning);
       layer.on("tileerror", () => {
-        if (layer === osmLayer) {
-          showTileWarning(
-            "Le fond OpenStreetMap n'a pas pu charger certaines tuiles. Vérifie le Referrer-Policy et la disponibilité du service."
-          );
-        } else if (layer === satelliteLayer) {
-          showTileWarning(
-            "Le fond satellite n'a pas de données disponibles à ce niveau de zoom."
-          );
-        } else {
-          showTileWarning(
-            "Le fond cartographique n'a pas pu charger certaines tuiles."
-          );
-        }
+        if (layer === osmLayer) showTileWarning("Le fond OpenStreetMap a rencontré un problème de chargement.");
+        else if (layer === satelliteLayer) showTileWarning("Le fond satellite n'a pas de données utiles à ce niveau de zoom.");
+        else showTileWarning("Le fond cartographique n'a pas pu charger certaines tuiles.");
       });
     });
   }
 
-  // ============================================
-  // FONCTION : Initialisation de la carte Leaflet
-  // ============================================
   function initMap() {
-    try {
-      map = L.map("map", {
-        center: [12.25, -0.6167],
-        zoom: 13,
-        minZoom: 8,
-        maxZoom: 22,
-        zoomControl: false,
-      });
+    map = L.map("map", {
+      center: DEFAULT_CENTER,
+      zoom: DEFAULT_ZOOM,
+      minZoom: 8,
+      maxZoom: 22,
+      zoomControl: false,
+      preferCanvas: true
+    });
 
-      // Fond OpenStreetMap
-      osmLayer = L.tileLayer(
-        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {
-          attribution: "&copy; OpenStreetMap contributors",
-          maxNativeZoom: 19,
-          maxZoom: 19,
-        }
-      );
+    osmLayer = L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors",
+      maxNativeZoom: 19,
+      maxZoom: 19
+    });
+    satelliteLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+      attribution: "&copy; Esri",
+      maxNativeZoom: 19,
+      maxZoom: 22
+    });
+    cartoDBLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+      attribution: "&copy; CARTO &copy; OpenStreetMap contributors",
+      subdomains: "abcd",
+      maxNativeZoom: 20,
+      maxZoom: 20
+    });
 
-      // Fond Satellite Esri
-      satelliteLayer = L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        {
-          attribution: "&copy; Esri",
-          maxNativeZoom: 19,
-          maxZoom: 22,
-        }
-      );
+    bindBaseLayerEvents();
+    osmLayer.addTo(map);
+    L.control.zoom({ position: "topright" }).addTo(map);
+    L.control.layers({ "OpenStreetMap": osmLayer, "Satellite": satelliteLayer, "CartoDB Light": cartoDBLayer }, null, { position: "topright" }).addTo(map);
+    L.control.scale({ imperial: false, metric: true }).addTo(map);
 
-      // Fond Carto light
-      cartoDBLayer = L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-        {
-          attribution: "&copy; CARTO &copy; OpenStreetMap contributors",
-          subdomains: "abcd",
-          maxNativeZoom: 20,
-          maxZoom: 20,
-        }
-      );
+    map.on("baselayerchange", function (e) {
+      hideTileWarning();
+      if (e.name === "Satellite" && map.getZoom() > 19) {
+        map.setZoom(19);
+        showTileWarning("Zoom maximum utile atteint pour le fond satellite.");
+      }
+    });
 
-      bindBaseLayerEvents();
+    map.on("zoomend", function () {
+      if (map.hasLayer(satelliteLayer) && map.getZoom() > 19) {
+        map.setZoom(19);
+        showTileWarning("Zoom maximum utile atteint pour le fond satellite.");
+      }
+    });
 
-      osmLayer.addTo(map);
-
-      L.control.zoom({
-        position: "topright",
-      }).addTo(map);
-
-      const baseMaps = {
-        "OpenStreetMap": osmLayer,
-        "Satellite": satelliteLayer,
-        "CartoDB Light": cartoDBLayer,
-      };
-
-      L.control.layers(baseMaps, null, {
-        position: "topright",
-      }).addTo(map);
-
-      L.control.scale({
-        imperial: false,
-        metric: true,
-      }).addTo(map);
-
-      // Si on passe en satellite, on évite les zooms inutiles
-      map.on("baselayerchange", function (e) {
-        hideTileWarning();
-
-        if (e.name === "Satellite" && map.getZoom() > 19) {
-          map.setZoom(19);
-          showTileWarning("Zoom maximum utile atteint pour le fond satellite.");
-        }
-      });
-
-      map.on("zoomend", function () {
-        if (map.hasLayer(satelliteLayer) && map.getZoom() > 19) {
-          map.setZoom(19);
-          showTileWarning("Zoom maximum utile atteint pour le fond satellite.");
-        }
-      });
-
-      // Couche des zones
-      zonesLayer = L.geoJSON(null, {
-        style: styleZone,
-        onEachFeature: onEachZone,
-      }).addTo(map);
-
-      // Couche des secteurs
-      secteursLayer = L.geoJSON(null, {
-        style: {
-          color: "#000000",
-          weight: 2,
-          fillOpacity: 0,
-          dashArray: "5, 5",
-        },
-      }).addTo(map);
-
-      console.log("✅ Carte Leaflet initialisée avec succès");
-    } catch (error) {
-      console.error("❌ Erreur lors de l'initialisation de la carte:", error);
-      alert(
-        "Erreur lors de l'initialisation de la carte. Vérifiez que Leaflet est bien chargé."
-      );
-    }
+    zonesLayer = L.geoJSON(null, { style: styleZone, onEachFeature: onEachZone }).addTo(map);
+    secteursLayer = L.geoJSON(null, {
+      style: { color: "#000", weight: 2, fillOpacity: 0, dashArray: "5, 5" }
+    }).addTo(map);
   }
 
-  // ============================================
-  // FONCTION : Définir le style des zones
-  // ============================================
   function styleZone(feature) {
     return {
       fillColor: feature.properties.couleur || "#3388ff",
       weight: 1,
       opacity: 1,
       color: "#666",
-      fillOpacity: currentOpacity,
+      fillOpacity: currentOpacity
     };
   }
 
-  // ============================================
-  // FONCTION : Actions sur chaque zone
-  // ============================================
   function onEachZone(feature, layer) {
     const props = feature.properties || {};
-
     let secteursText = "N/A";
+
     if (Array.isArray(props.secteurs) && props.secteurs.length > 0) {
-      secteursText = props.secteurs
-        .map((s) => s.nom_secteur || s.nom || String(s))
-        .join(", ");
+      secteursText = props.secteurs.map((s) => s.nom_secteur || s.nom || String(s)).join(", ");
     } else if (Array.isArray(props.noms_secteurs) && props.noms_secteurs.length > 0) {
       secteursText = props.noms_secteurs.join(", ");
     }
 
-    const popupContent = `
+    layer.bindPopup(`
       <div class="custom-popup">
         <h6>${props.zone_sdau || "Zone inconnue"}</h6>
         <table>
-          <tr>
-            <td><strong>Secteur:</strong></td>
-            <td>${secteursText}</td>
-          </tr>
-          <tr>
-            <td><strong>Type:</strong></td>
-            <td>${props.type_zone || "N/A"}</td>
-          </tr>
-          <tr>
-            <td><strong>Statut:</strong></td>
-            <td>${props.statut_amenagement || "N/A"}</td>
-          </tr>
-          <tr>
-            <td><strong>Superficie:</strong></td>
-            <td>${props.aire_ha || "N/A"} ha</td>
-          </tr>
+          <tr><td><strong>Secteur :</strong></td><td>${secteursText}</td></tr>
+          <tr><td><strong>Type :</strong></td><td>${props.type_zone || "N/A"}</td></tr>
+          <tr><td><strong>Statut :</strong></td><td>${props.statut_amenagement || "N/A"}</td></tr>
+          <tr><td><strong>Superficie :</strong></td><td>${props.aire_ha || "N/A"} ha</td></tr>
         </table>
       </div>
-    `;
+    `);
 
-    layer.bindPopup(popupContent);
-
-    layer.on("mouseover", function () {
-      this.setStyle({
-        weight: 3,
-        color: "#000",
-      });
-    });
-
-    layer.on("mouseout", function () {
-      zonesLayer.resetStyle(this);
-    });
+    layer.on("mouseover", function () { this.setStyle({ weight: 3, color: "#000" }); });
+    layer.on("mouseout", function () { zonesLayer.resetStyle(this); });
   }
 
-  // ============================================
-  // FONCTION : Charger les données depuis l'API
-  // ============================================
-  async function loadData() {
-    try {
-      console.log("🔄 Chargement des données...");
-
-      const zonesResponse = await fetch("/api/zones/geojson/", {
-        credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!zonesResponse.ok) {
-        throw new Error(
-          `Erreur HTTP ${zonesResponse.status}: ${zonesResponse.statusText}`
-        );
-      }
-
-      const zonesData = await zonesResponse.json();
-      currentData = zonesData.features || [];
-
-      zonesLayer.clearLayers();
-
-      if (
-        zonesData.type === "FeatureCollection" &&
-        zonesData.features &&
-        zonesData.features.length > 0
-      ) {
-        zonesLayer.addData(zonesData);
-        console.log(`✅ ${zonesData.features.length} zones chargées`);
-      } else {
-        console.warn("⚠️ Aucune zone trouvée dans les données");
-      }
-
-      try {
-        const secteursResponse = await fetch("/api/secteurs/", {
-          credentials: "same-origin",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        });
-
-        if (secteursResponse.ok) {
-          const secteursData = await secteursResponse.json();
-          secteursLayer.clearLayers();
-
-          if (secteursData.type === "FeatureCollection") {
-            secteursLayer.addData(secteursData);
-            console.log("✅ Secteurs chargés");
-          }
-        }
-      } catch (secteurError) {
-        console.warn("⚠️ Erreur chargement secteurs (non bloquant):", secteurError);
-      }
-
-      if (
-        currentData.length > 0 &&
-        zonesLayer.getBounds &&
-        zonesLayer.getBounds().isValid()
-      ) {
-        map.fitBounds(zonesLayer.getBounds(), { padding: [50, 50] });
-      } else {
-        map.setView([12.25, -0.6167], 13);
-      }
-
-      await loadStatistics();
-      await loadFilterOptions();
-      createLegend(currentData);
-
-      console.log("✅ Chargement terminé avec succès");
-    } catch (error) {
-      console.error("❌ Erreur lors du chargement des données:", error);
-      alert(
-        `Erreur de chargement:\n${error.message}\n\nVérifiez que :\n1. Le serveur Django est démarré\n2. Des données existent dans la base\n3. Vous êtes bien connecté`
-      );
-      map.setView([12.25, -0.6167], 13);
-    }
+  async function fetchJson(url, options = {}) {
+    const response = await fetch(url, options);
+    if (!response.ok) throw new Error(`Erreur HTTP ${response.status}`);
+    return response.json();
   }
 
-  // ============================================
-  // FONCTION : Charger les statistiques
-  // ============================================
   async function loadStatistics() {
     try {
-      const response = await fetch("/api/zones/statistiques/", {
+      const stats = await fetchJson("/api/zones/statistiques/", {
         credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" }
       });
-
-      if (!response.ok) {
-        document.getElementById("total-zones").textContent = "0";
-        document.getElementById("superficie-totale").textContent = "0 ha";
-        return;
-      }
-
-      const stats = await response.json();
-
       document.getElementById("total-zones").textContent = stats.total_zones || 0;
-      document.getElementById("superficie-totale").textContent =
-        parseFloat(stats.superficie_totale || 0).toFixed(2) + " ha";
+      document.getElementById("superficie-totale").textContent = `${parseFloat(stats.superficie_totale || 0).toFixed(2)} ha`;
     } catch (error) {
-      console.error("❌ Erreur statistiques:", error);
+      console.error("Erreur statistiques :", error);
       document.getElementById("total-zones").textContent = "N/A";
       document.getElementById("superficie-totale").textContent = "N/A";
     }
   }
 
-  // ============================================
-  // FONCTION : Charger les options de filtres
-  // ============================================
   async function loadFilterOptions() {
     try {
-      const response = await fetch("/api/zones/choix/", {
+      const options = await fetchJson("/api/zones/choix/", {
         credentials: "same-origin",
-        headers: {
-          Accept: "application/json",
-        },
+        headers: { Accept: "application/json" }
       });
 
-      if (!response.ok) {
-        console.warn("Options non disponibles");
-        return;
-      }
-
-      const options = await response.json();
-
       const secteurSelect = document.getElementById("filter-secteur");
+      const typeSelect = document.getElementById("filter-type");
+      const statutSelect = document.getElementById("filter-statut");
+
       if (secteurSelect) {
         secteurSelect.innerHTML = '<option value="">Tous les secteurs</option>';
-
-        if (options.secteurs && Array.isArray(options.secteurs)) {
-          options.secteurs.forEach((secteur) => {
-            const option = document.createElement("option");
-            if (typeof secteur === "object") {
-              option.value = secteur.id || secteur.nom;
-              option.textContent = secteur.nom;
-            } else {
-              option.value = secteur;
-              option.textContent = secteur;
-            }
-            secteurSelect.appendChild(option);
-          });
-        }
+        (options.secteurs || []).forEach((secteur) => {
+          const option = document.createElement("option");
+          option.value = typeof secteur === "object" ? (secteur.id || secteur.nom) : secteur;
+          option.textContent = typeof secteur === "object" ? secteur.nom : secteur;
+          secteurSelect.appendChild(option);
+        });
       }
 
-      const typeSelect = document.getElementById("filter-type");
       if (typeSelect) {
         typeSelect.innerHTML = '<option value="">Tous les types</option>';
-
-        if (options.types_zone && Array.isArray(options.types_zone)) {
-          options.types_zone.forEach((type) => {
-            const option = document.createElement("option");
-            option.value = type;
-            option.textContent = type;
-            typeSelect.appendChild(option);
-          });
-        }
+        (options.types_zone || []).forEach((type) => {
+          const option = document.createElement("option");
+          option.value = type;
+          option.textContent = type;
+          typeSelect.appendChild(option);
+        });
       }
 
-      const statutSelect = document.getElementById("filter-statut");
       if (statutSelect) {
         statutSelect.innerHTML = '<option value="">Tous les statuts</option>';
-
-        if (
-          options.statuts_amenagement &&
-          Array.isArray(options.statuts_amenagement)
-        ) {
-          options.statuts_amenagement.forEach((statut) => {
-            const option = document.createElement("option");
-            option.value = statut;
-            option.textContent = statut;
-            statutSelect.appendChild(option);
-          });
-        }
+        (options.statuts_amenagement || []).forEach((statut) => {
+          const option = document.createElement("option");
+          option.value = statut;
+          option.textContent = statut;
+          statutSelect.appendChild(option);
+        });
       }
     } catch (error) {
-      console.error("❌ Erreur options:", error);
+      console.error("Erreur options :", error);
     }
   }
 
-  // ============================================
-  // FONCTION : Créer la légende dynamique
-  // ============================================
   function createLegend(features) {
     const legendContainer = document.getElementById("legend-container");
     if (!legendContainer) return;
-
     legendContainer.innerHTML = "";
 
     if (!features || features.length === 0) {
-      legendContainer.innerHTML =
-        '<small class="text-muted">Aucune donnée</small>';
+      legendContainer.innerHTML = '<small class="text-muted">Aucune donnée</small>';
       return;
     }
 
@@ -1461,227 +640,187 @@
     features.forEach((feature) => {
       const type = feature.properties?.type_zone || "Type non renseigné";
       const couleur = feature.properties?.couleur || "#3388ff";
-      if (!types[type]) {
-        types[type] = couleur;
-      }
+      if (!types[type]) types[type] = couleur;
     });
 
-    for (const [type, couleur] of Object.entries(types)) {
+    Object.entries(types).forEach(([type, couleur]) => {
       const item = document.createElement("div");
       item.className = "legend-item";
-      item.innerHTML = `
-        <div class="legend-color" style="background-color: ${couleur};"></div>
-        <small>${type}</small>
-      `;
+      item.innerHTML = `<div class="legend-color" style="background-color:${couleur};"></div><small>${type}</small>`;
       legendContainer.appendChild(item);
+    });
+  }
+
+  async function loadData() {
+    setMapLoading(true, "Chargement des données cartographiques...");
+    try {
+      const zonesPromise = fetchJson("/api/zones/geojson/", {
+        credentials: "same-origin",
+        headers: { Accept: "application/json", "Content-Type": "application/json" }
+      });
+      const secteursPromise = fetchJson("/api/secteurs/", {
+        credentials: "same-origin",
+        headers: { Accept: "application/json", "Content-Type": "application/json" }
+      }).catch(() => null);
+      const statsPromise = loadStatistics();
+      const filtersPromise = loadFilterOptions();
+
+      const [zonesData, secteursData] = await Promise.all([zonesPromise, secteursPromise, statsPromise, filtersPromise]);
+
+      currentData = zonesData.features || [];
+      zonesLayer.clearLayers();
+      if (zonesData.type === "FeatureCollection" && currentData.length > 0) zonesLayer.addData(zonesData);
+
+      if (secteursData && secteursData.type === "FeatureCollection") {
+        secteursLayer.clearLayers();
+        secteursLayer.addData(secteursData);
+      }
+
+      if (currentData.length > 0 && zonesLayer.getBounds().isValid()) {
+        map.fitBounds(zonesLayer.getBounds(), { padding: [40, 40] });
+      } else {
+        map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+      }
+
+      createLegend(currentData);
+    } catch (error) {
+      console.error("Erreur chargement données :", error);
+      map.setView(DEFAULT_CENTER, DEFAULT_ZOOM);
+      showTileWarning("Certaines données n'ont pas pu être chargées. Vérifiez la connexion ou l'API.");
+    } finally {
+      setMapLoading(false);
     }
   }
 
-  // ============================================
-  // FONCTION : Gérer la saisie dans la recherche
-  // ============================================
   function handleSearchInput() {
-    const searchInput = document.getElementById("search-zone");
-    const autocompleteDiv = document.getElementById("search-autocomplete");
-    const searchText = searchInput.value.trim().toLowerCase();
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+      const searchInput = document.getElementById("search-zone");
+      const autocompleteDiv = document.getElementById("search-autocomplete");
+      const searchText = searchInput.value.trim().toLowerCase();
 
-    if (searchText.length === 0) {
-      autocompleteDiv.classList.remove("show");
+      if (!searchText) {
+        autocompleteDiv.classList.remove("show");
+        autocompleteDiv.innerHTML = "";
+        return;
+      }
+
+      const matches = currentData.filter((feature) => {
+        const zoneName = (feature.properties.zone_sdau || "").toLowerCase();
+        return zoneName.includes(searchText);
+      }).slice(0, 8);
+
+      if (matches.length === 0) {
+        autocompleteDiv.innerHTML = '<div class="autocomplete-empty"><i class="fas fa-info-circle me-2"></i>Aucune zone trouvée</div>';
+        autocompleteDiv.classList.add("show");
+        return;
+      }
+
       autocompleteDiv.innerHTML = "";
-      return;
-    }
-
-    const matchingZones = currentData.filter((feature) => {
-      const zoneName = (feature.properties.zone_sdau || "").toLowerCase();
-      return zoneName.includes(searchText);
-    });
-
-    const limitedResults = matchingZones.slice(0, 8);
-
-    if (limitedResults.length > 0) {
-      autocompleteDiv.innerHTML = "";
-
-      limitedResults.forEach((feature) => {
-        const props = feature.properties;
+      matches.forEach((feature) => {
+        const props = feature.properties || {};
         const item = document.createElement("div");
         item.className = "autocomplete-item";
         item.innerHTML = `
           <i class="fas fa-map-marker-alt"></i>
-          <span class="zone-name">${props.zone_sdau}</span>
+          <span class="zone-name">${props.zone_sdau || "Zone"}</span>
           <span class="zone-type">${props.type_zone || "N/A"}</span>
         `;
-
-        item.onclick = function () {
-          selectZoneFromAutocomplete(feature);
-        };
-
+        item.addEventListener("click", () => selectZoneFromAutocomplete(feature));
         autocompleteDiv.appendChild(item);
       });
-
       autocompleteDiv.classList.add("show");
-    } else {
-      autocompleteDiv.innerHTML = `
-        <div class="autocomplete-empty">
-          <i class="fas fa-info-circle me-2"></i>Aucune zone trouvée
-        </div>
-      `;
-      autocompleteDiv.classList.add("show");
-    }
+    }, 180);
   }
 
-  // ============================================
-  // FONCTION : Sélectionner une zone depuis l'autocomplétion
-  // ============================================
   function selectZoneFromAutocomplete(feature) {
     const searchInput = document.getElementById("search-zone");
     const autocompleteDiv = document.getElementById("search-autocomplete");
-
-    searchInput.value = feature.properties.zone_sdau;
+    searchInput.value = feature.properties.zone_sdau || "";
     autocompleteDiv.classList.remove("show");
-
     applyFilters();
 
-    const layer = zonesLayer.getLayers().find((l) => {
-      return l.feature.properties.zone_sdau === feature.properties.zone_sdau;
-    });
-
+    const layer = zonesLayer.getLayers().find((l) => l.feature?.properties?.zone_sdau === feature.properties.zone_sdau);
     if (layer) {
-      map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+      map.fitBounds(layer.getBounds(), { padding: [40, 40] });
       layer.openPopup();
-
-      layer.setStyle({
-        weight: 3,
-        color: "#FF0000",
-      });
-
-      setTimeout(() => {
-        zonesLayer.resetStyle(layer);
-      }, 2000);
+      layer.setStyle({ weight: 3, color: "#ff0000" });
+      setTimeout(() => zonesLayer.resetStyle(layer), 2000);
     }
+
+    if (window.innerWidth <= 768) toggleSidebar(true);
   }
 
-  // ============================================
-  // FONCTION : Gérer la touche Entrée
-  // ============================================
   function handleSearchKeypress(event) {
     if (event.key === "Enter") {
       event.preventDefault();
       applyFilters();
-
-      const autocompleteDiv = document.getElementById("search-autocomplete");
-      autocompleteDiv.classList.remove("show");
+      document.getElementById("search-autocomplete").classList.remove("show");
     }
   }
 
-  // ============================================
-  // FONCTION : Appliquer les filtres
-  // ============================================
   async function applyFilters() {
-    const searchText = document
-      .getElementById("search-zone")
-      .value.trim()
-      .toLowerCase();
+    const searchText = document.getElementById("search-zone").value.trim().toLowerCase();
     const secteurId = document.getElementById("filter-secteur").value;
     const type = document.getElementById("filter-type").value;
     const statut = document.getElementById("filter-statut").value;
-
     document.getElementById("search-autocomplete").classList.remove("show");
 
     if (secteurId) {
-      const params = new URLSearchParams();
-      params.append("secteur", secteurId);
-      if (type) params.append("type_zone", type);
-      if (statut) params.append("statut_amenagement", statut);
-
       try {
-        const response = await fetch(`/api/zones/geojson/?${params.toString()}`, {
+        setMapLoading(true, "Application des filtres...");
+        const params = new URLSearchParams();
+        params.append("secteur", secteurId);
+        if (type) params.append("type_zone", type);
+        if (statut) params.append("statut_amenagement", statut);
+
+        const geojsonData = await fetchJson(`/api/zones/geojson/?${params.toString()}`, {
           credentials: "same-origin",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
+          headers: { Accept: "application/json", "Content-Type": "application/json" }
         });
 
-        if (!response.ok) {
-          throw new Error(`Erreur HTTP ${response.status}`);
-        }
-
-        const geojsonData = await response.json();
         let features = geojsonData.features || [];
-
         if (searchText) {
-          features = features.filter((f) =>
-            (f.properties.zone_sdau || "").toLowerCase().includes(searchText)
-          );
+          features = features.filter((f) => (f.properties.zone_sdau || "").toLowerCase().includes(searchText));
         }
 
         zonesLayer.clearLayers();
-
         if (features.length > 0) {
           zonesLayer.addData({ type: "FeatureCollection", features });
-
-          if (zonesLayer.getBounds && zonesLayer.getBounds().isValid()) {
-            map.fitBounds(zonesLayer.getBounds(), { padding: [30, 30] });
-          }
+          if (zonesLayer.getBounds().isValid()) map.fitBounds(zonesLayer.getBounds(), { padding: [30, 30] });
         }
-
         createLegend(features);
       } catch (error) {
-        console.error("❌ Erreur lors du filtrage serveur:", error);
-        alert(`Erreur lors du filtrage: ${error.message}`);
+        console.error("Erreur filtrage serveur :", error);
+        showTileWarning("Le filtrage serveur a échoué.");
+      } finally {
+        setMapLoading(false);
       }
-
       return;
     }
 
     const filteredData = currentData.filter((feature) => {
-      const props = feature.properties;
-
-      if (
-        searchText &&
-        !(props.zone_sdau || "").toLowerCase().includes(searchText)
-      ) {
-        return false;
-      }
-
-      if (type && props.type_zone !== type) {
-        return false;
-      }
-
-      if (statut && props.statut_amenagement !== statut) {
-        return false;
-      }
-
+      const props = feature.properties || {};
+      if (searchText && !(props.zone_sdau || "").toLowerCase().includes(searchText)) return false;
+      if (type && props.type_zone !== type) return false;
+      if (statut && props.statut_amenagement !== statut) return false;
       return true;
     });
 
     zonesLayer.clearLayers();
     zonesLayer.addData({ type: "FeatureCollection", features: filteredData });
-
-    if (
-      filteredData.length > 0 &&
-      zonesLayer.getBounds &&
-      zonesLayer.getBounds().isValid()
-    ) {
-      map.fitBounds(zonesLayer.getBounds());
-    }
-
+    if (filteredData.length > 0 && zonesLayer.getBounds().isValid()) map.fitBounds(zonesLayer.getBounds(), { padding: [30, 30] });
     createLegend(filteredData);
   }
 
-  // ============================================
-  // FONCTION : Réinitialiser uniquement la recherche
-  // ============================================
   function resetSearchOnly() {
     document.getElementById("search-zone").value = "";
     const autocompleteDiv = document.getElementById("search-autocomplete");
     autocompleteDiv.classList.remove("show");
+    autocompleteDiv.innerHTML = "";
     applyFilters();
   }
 
-  // ============================================
-  // FONCTION : Réinitialiser tous les filtres
-  // ============================================
   function resetFilters() {
     document.getElementById("search-zone").value = "";
     document.getElementById("filter-secteur").value = "";
@@ -1690,49 +829,26 @@
 
     const autocompleteDiv = document.getElementById("search-autocomplete");
     autocompleteDiv.classList.remove("show");
+    autocompleteDiv.innerHTML = "";
 
     zonesLayer.clearLayers();
-    zonesLayer.addData({
-      type: "FeatureCollection",
-      features: currentData,
-    });
-
-    if (currentData.length > 0 && zonesLayer.getBounds().isValid()) {
-      map.fitBounds(zonesLayer.getBounds());
-    }
-
+    zonesLayer.addData({ type: "FeatureCollection", features: currentData });
+    if (currentData.length > 0 && zonesLayer.getBounds().isValid()) map.fitBounds(zonesLayer.getBounds(), { padding: [40, 40] });
     createLegend(currentData);
     hideTileWarning();
   }
 
-  // ============================================
-  // FONCTION : Mettre à jour l'opacité
-  // ============================================
   function updateOpacity(value) {
     currentOpacity = value / 100;
     document.getElementById("opacity-value").textContent = value;
-
-    zonesLayer.setStyle(function () {
-      return {
-        fillOpacity: currentOpacity,
-      };
-    });
+    zonesLayer.setStyle(() => ({ fillOpacity: currentOpacity }));
   }
 
-  // ============================================
-  // GÉOLOCALISATION PAR COORDONNÉES
-  // ============================================
   function switchCoordFormat(format) {
     currentCoordFormat = format;
-
-    document.querySelectorAll(".coord-format-tab").forEach((tab) => {
-      tab.classList.remove("active");
-    });
+    document.querySelectorAll(".coord-format-tab").forEach((tab) => tab.classList.remove("active"));
     document.getElementById(`tab-${format}`).classList.add("active");
-
-    document.querySelectorAll(".coord-format-container").forEach((container) => {
-      container.classList.remove("active");
-    });
+    document.querySelectorAll(".coord-format-container").forEach((c) => c.classList.remove("active"));
     document.getElementById(`format-${format}`).classList.add("active");
   }
 
@@ -1740,93 +856,82 @@
     deg = Math.abs(parseFloat(deg) || 0);
     min = parseFloat(min) || 0;
     sec = parseFloat(sec) || 0;
-
-    if (min >= 60 || sec >= 60) {
-      throw new Error("Minutes et secondes doivent être < 60");
-    }
-
+    if (min >= 60 || sec >= 60) throw new Error("Minutes et secondes doivent être < 60");
     let decimal = deg + min / 60 + sec / 3600;
-
-    if (direction === "S" || direction === "W") {
-      decimal = -decimal;
-    }
-
+    if (direction === "S" || direction === "W") decimal = -decimal;
     return decimal;
   }
 
+  function placerMarqueur(lat, lon, zoneData) {
+    if (pointMarker) map.removeLayer(pointMarker);
+    pointMarker = L.marker([lat, lon], {
+      icon: L.divIcon({
+        className: "custom-marker",
+        html: '<i class="fas fa-map-marker-alt fa-3x" style="color:#FF4500;"></i>',
+        iconSize: [30, 40],
+        iconAnchor: [15, 40]
+      })
+    }).addTo(map);
+
+    let popup = `<strong>📍 Position</strong><br>Lat: ${lat.toFixed(6)}<br>Lon: ${lon.toFixed(6)}`;
+    if (zoneData) popup += `<br><br><strong>🏘️ ${zoneData.zone_sdau}</strong>`;
+    pointMarker.bindPopup(popup).openPopup();
+    map.flyTo([lat, lon], 16);
+  }
+
   async function localiserPoint() {
+    clearPointResult();
     try {
       let longitude, latitude;
-
       if (currentCoordFormat === "dms") {
-        const lonDeg = document.getElementById("lon-deg-dms").value;
-        const lonMin = document.getElementById("lon-min-dms").value;
-        const lonSec = document.getElementById("lon-sec-dms").value;
-        const lonDir = document.getElementById("lon-dir-dms").value;
-
-        const latDeg = document.getElementById("lat-deg-dms").value;
-        const latMin = document.getElementById("lat-min-dms").value;
-        const latSec = document.getElementById("lat-sec-dms").value;
-        const latDir = document.getElementById("lat-dir-dms").value;
-
-        longitude = dmsToDecimal(lonDeg, lonMin, lonSec, lonDir);
-        latitude = dmsToDecimal(latDeg, latMin, latSec, latDir);
+        longitude = dmsToDecimal(
+          document.getElementById("lon-deg-dms").value,
+          document.getElementById("lon-min-dms").value,
+          document.getElementById("lon-sec-dms").value,
+          document.getElementById("lon-dir-dms").value
+        );
+        latitude = dmsToDecimal(
+          document.getElementById("lat-deg-dms").value,
+          document.getElementById("lat-min-dms").value,
+          document.getElementById("lat-sec-dms").value,
+          document.getElementById("lat-dir-dms").value
+        );
       } else {
         longitude = parseFloat(document.getElementById("lon-decimal").value);
         latitude = parseFloat(document.getElementById("lat-decimal").value);
       }
 
-      if (isNaN(longitude) || isNaN(latitude)) {
-        alert("❌ Coordonnées invalides");
+      if (Number.isNaN(longitude) || Number.isNaN(latitude)) {
+        showPointResult("error", "<strong>Coordonnées invalides</strong>Veuillez saisir des valeurs correctes.");
         return;
       }
 
       const response = await fetch("/api/zones/point_info/", {
         method: "POST",
         credentials: "same-origin",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRFToken": getCookie("csrftoken"),
-        },
-        body: JSON.stringify({ longitude, latitude }),
+        headers: { "Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken") },
+        body: JSON.stringify({ longitude, latitude })
       });
-
       const data = await response.json();
 
       if (data.zone_trouvee) {
-        alert(`✅ Zone trouvée: ${data.zone.zone_sdau}`);
         placerMarqueur(latitude, longitude, data.zone);
+        showPointResult("success", `
+          <strong>Zone trouvée</strong>
+          <table>
+            <tr><td><strong>Zone :</strong></td><td>${data.zone.zone_sdau || "N/A"}</td></tr>
+            <tr><td><strong>Type :</strong></td><td>${data.zone.type_zone || "N/A"}</td></tr>
+            <tr><td><strong>Statut :</strong></td><td>${data.zone.statut_amenagement || "N/A"}</td></tr>
+          </table>
+        `);
       } else {
-        alert("⚠️ Aucune zone trouvée à ces coordonnées");
         placerMarqueur(latitude, longitude, null);
+        showPointResult("not-found", "<strong>Aucune zone trouvée</strong>Le point a été localisé sur la carte, mais il n'appartient à aucune zone connue.");
       }
     } catch (error) {
-      console.error("❌ Erreur localisation:", error);
-      alert("❌ Erreur lors de la localisation");
+      console.error("Erreur localisation :", error);
+      showPointResult("error", `<strong>Erreur de localisation</strong>${error.message || "Une erreur est survenue."}`);
     }
-  }
-
-  function placerMarqueur(lat, lon, zoneData) {
-    if (pointMarker) {
-      map.removeLayer(pointMarker);
-    }
-
-    pointMarker = L.marker([lat, lon], {
-      icon: L.divIcon({
-        className: "custom-marker",
-        html: '<i class="fas fa-map-marker-alt fa-3x" style="color: #FF4500;"></i>',
-        iconSize: [30, 40],
-        iconAnchor: [15, 40],
-      }),
-    }).addTo(map);
-
-    let popup = `<strong>📍 Position</strong><br>Lat: ${lat.toFixed(6)}<br>Lon: ${lon.toFixed(6)}`;
-    if (zoneData) {
-      popup += `<br><br><strong>🏘️ ${zoneData.zone_sdau}</strong>`;
-    }
-
-    pointMarker.bindPopup(popup).openPopup();
-    map.flyTo([lat, lon], 16);
   }
 
   function effacerCoordonnees() {
@@ -1836,73 +941,62 @@
     document.getElementById("lat-deg-dms").value = "12";
     document.getElementById("lat-min-dms").value = "15";
     document.getElementById("lat-sec-dms").value = "0";
-
     document.getElementById("lon-decimal").value = "-0.6167";
     document.getElementById("lat-decimal").value = "12.2500";
-
+    clearPointResult();
     if (pointMarker) {
       map.removeLayer(pointMarker);
       pointMarker = null;
     }
-
-    map.flyTo([12.25, -0.6167], 13);
+    map.flyTo(DEFAULT_CENTER, DEFAULT_ZOOM);
   }
 
   function utiliserMaPosition() {
     if (!navigator.geolocation) {
-      alert("❌ Géolocalisation non supportée par votre navigateur");
+      showPointResult("error", "<strong>GPS non supporté</strong>Votre navigateur ne supporte pas la géolocalisation.");
       return;
     }
-
     navigator.geolocation.getCurrentPosition(
       (position) => {
         switchCoordFormat("decimal");
-
-        document.getElementById("lon-decimal").value =
-          position.coords.longitude.toFixed(6);
-        document.getElementById("lat-decimal").value =
-          position.coords.latitude.toFixed(6);
-
+        document.getElementById("lon-decimal").value = position.coords.longitude.toFixed(6);
+        document.getElementById("lat-decimal").value = position.coords.latitude.toFixed(6);
         localiserPoint();
       },
-      (error) => {
-        alert(`❌ Erreur GPS: ${error.message}`);
-      }
+      (error) => showPointResult("error", `<strong>Erreur GPS</strong>${error.message}`),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
     );
   }
 
-  // ============================================
-  // INITIALISATION AU CHARGEMENT DE LA PAGE
-  // ============================================
-  document.addEventListener("DOMContentLoaded", function () {
-    console.log("🚀 Initialisation SDAU Zorgho...");
-
+  document.addEventListener("DOMContentLoaded", async function () {
     if (typeof L === "undefined") {
-      console.error("❌ Leaflet n'est pas chargé !");
-      alert(
-        "Erreur: Bibliothèque cartographique non chargée. Vérifiez votre connexion internet."
-      );
+      showTileWarning("La bibliothèque cartographique Leaflet n'est pas chargée.");
       return;
     }
 
     try {
       initMap();
-      loadUserName();
-      loadData();
+      updateSidebarLayout();
+
+      if (window.innerWidth <= 768) toggleSidebar(true);
+
+      await Promise.allSettled([loadUserName(), loadData()]);
 
       document.addEventListener("click", function (e) {
         const searchContainer = document.querySelector(".search-container");
         const autocompleteDiv = document.getElementById("search-autocomplete");
-
         if (searchContainer && autocompleteDiv && !searchContainer.contains(e.target)) {
           autocompleteDiv.classList.remove("show");
         }
       });
+
+      window.addEventListener("resize", updateSidebarLayout);
     } catch (error) {
-      console.error("❌ Erreur initialisation:", error);
-      alert("Erreur lors de l'initialisation. Consultez la console (F12).");
+      console.error("Erreur initialisation :", error);
+      showTileWarning("Erreur lors de l'initialisation de la carte.");
     }
   });
 </script>
 {% endblock %}
-{% endblock %}
+Response
+Created file /home/user/carte_corrected.html (42204 chara

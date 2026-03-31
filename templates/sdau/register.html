@@ -1,42 +1,73 @@
-{% extends 'base.html' %} {% block title %}Inscription - SDAU Zorgho{% endblock
-%} {% block body_class %}auth-page d-flex flex-column{% endblock %} {% block
-content %}
-<div
-  class="container d-flex justify-content-center align-items-center"
-  style="min-height: 80vh"
->
-  <div class="col-md-6">
+{% extends 'base.html' %}
+
+{% block title %}Inscription - SDAU Zorgho{% endblock %}
+{% block body_class %}auth-page d-flex flex-column{% endblock %}
+
+{% block extra_css %}
+<style>
+  .auth-page .container {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+  }
+
+  .card-custom {
+    border: 0;
+    border-radius: 18px;
+    box-shadow: 0 14px 35px rgba(0, 0, 0, 0.08);
+  }
+
+  .alert-custom {
+    border-radius: 12px;
+  }
+
+  .btn-primary-custom {
+    background: var(--couleur-primaire);
+    border-color: var(--couleur-primaire);
+  }
+
+  .btn-primary-custom:hover,
+  .btn-primary-custom:focus {
+    background: var(--couleur-secondaire);
+    border-color: var(--couleur-secondaire);
+  }
+
+  @media (max-width: 576px) {
+    .auth-page .container {
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+    }
+
+    .card-custom .card-body {
+      padding: 1.5rem !important;
+    }
+
+    .card-custom h2 {
+      font-size: 1.5rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: calc(100vh - 160px);">
+  <div class="col-12 col-md-8 col-lg-6">
     <div class="card card-custom">
       <div class="card-body p-5">
-        <!-- Logo et titre -->
         <div class="text-center mb-4">
           <div class="mb-3">
-            <i
-              class="fas fa-user-plus fa-4x"
-              style="color: var(--couleur-primaire)"
-            ></i>
+            <i class="fas fa-user-plus fa-4x" style="color: var(--couleur-primaire)"></i>
           </div>
           <h2 class="fw-bold" style="color: var(--couleur-primaire)">
             Créer un compte
           </h2>
-          <p class="text-muted">Accédez à la plateforme SDAU Zorgho</p>
+          <p class="text-muted mb-0">Accédez à la plateforme SDAU Zorgho</p>
           <hr />
         </div>
 
-        <!-- Messages -->
-        <div
-          id="error-message"
-          class="alert alert-danger alert-custom d-none"
-          role="alert"
-        ></div>
-        <div
-          id="success-message"
-          class="alert alert-success alert-custom d-none"
-          role="alert"
-        ></div>
+        <div id="error-message" class="alert alert-danger alert-custom d-none" role="alert"></div>
+        <div id="success-message" class="alert alert-success alert-custom d-none" role="alert"></div>
 
-        <!-- Formulaire d'inscription -->
-        <form id="register-form">
+        <form id="register-form" novalidate>
           {% csrf_token %}
 
           <div class="row">
@@ -44,26 +75,14 @@ content %}
               <label for="nom" class="form-label">
                 <i class="fas fa-user me-2"></i>Nom
               </label>
-              <input
-                type="text"
-                class="form-control"
-                id="nom"
-                name="nom"
-                required
-              />
+              <input type="text" class="form-control" id="nom" name="nom" required />
             </div>
 
             <div class="col-md-6 mb-3">
               <label for="prenom" class="form-label">
                 <i class="fas fa-user me-2"></i>Prénom
               </label>
-              <input
-                type="text"
-                class="form-control"
-                id="prenom"
-                name="prenom"
-                required
-              />
+              <input type="text" class="form-control" id="prenom" name="prenom" required />
             </div>
           </div>
 
@@ -71,26 +90,14 @@ content %}
             <label for="username" class="form-label">
               <i class="fas fa-id-badge me-2"></i>Nom d'utilisateur
             </label>
-            <input
-              type="text"
-              class="form-control"
-              id="username"
-              name="username"
-              required
-            />
+            <input type="text" class="form-control" id="username" name="username" required />
           </div>
 
           <div class="mb-3">
             <label for="email" class="form-label">
               <i class="fas fa-envelope me-2"></i>Adresse email
             </label>
-            <input
-              type="email"
-              class="form-control"
-              id="email"
-              name="email"
-              required
-            />
+            <input type="email" class="form-control" id="email" name="email" required />
           </div>
 
           <div class="mb-3">
@@ -99,8 +106,8 @@ content %}
             </label>
             <select class="form-control" id="role" name="role" required>
               <option value="consultation">Consultation</option>
-              <!--<option value="gestionnaire">Gestionnaire</option>-->
-              <!--<option value="admin">Administrateur</option>-->
+              <!-- <option value="gestionnaire">Gestionnaire</option> -->
+              <!-- <option value="admin">Administrateur</option> -->
             </select>
           </div>
 
@@ -141,10 +148,7 @@ content %}
           <div class="text-center">
             <p class="mb-0">
               Déjà un compte ?
-              <a
-                href="{% url 'sdau:login' %}"
-                style="color: var(--couleur-primaire)"
-              >
+              <a href="{% url 'sdau:login' %}" style="color: var(--couleur-primaire)">
                 <strong>Se connecter</strong>
               </a>
             </p>
@@ -154,87 +158,115 @@ content %}
     </div>
   </div>
 </div>
-{% endblock %} {% block extra_js %}
+{% endblock %}
+
+{% block extra_js %}
 <script>
-  function getCookie(name) {
+  document.addEventListener("DOMContentLoaded", function () {
+    function getCookie(name) {
       let cookieValue = null;
-      if (document.cookie && document.cookie !== '') {
-          const cookies = document.cookie.split(';');
-          for (let cookie of cookies) {
-              cookie = cookie.trim();
-              if (cookie.startsWith(name + '=')) {
-                  cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                  break;
-              }
+      if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let cookie of cookies) {
+          cookie = cookie.trim();
+          if (cookie.startsWith(name + "=")) {
+            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+            break;
           }
+        }
       }
       return cookieValue;
-  }
+    }
 
-  const alreadyAuthenticated = {{ already_authenticated|yesno:"true,false" }};
+    const alreadyAuthenticated = {{ already_authenticated|yesno:"true,false" }};
+    const registerForm = document.getElementById("register-form");
+    const errorDiv = document.getElementById("error-message");
+    const successDiv = document.getElementById("success-message");
 
-  document.getElementById('register-form').addEventListener('submit', async function(e) {
+    function showMessage(type, message) {
+      if (!errorDiv || !successDiv) return;
+
+      errorDiv.classList.add("d-none");
+      successDiv.classList.add("d-none");
+      errorDiv.textContent = "";
+      successDiv.textContent = "";
+
+      if (type === "error") {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove("d-none");
+      } else if (type === "success") {
+        successDiv.textContent = message;
+        successDiv.classList.remove("d-none");
+      }
+    }
+
+    if (alreadyAuthenticated) {
+      window.location.href = "/carte/";
+      return;
+    }
+
+    if (!registerForm) {
+      console.warn("Le formulaire d'inscription est introuvable dans le DOM.");
+      return;
+    }
+
+    registerForm.addEventListener("submit", async function (e) {
       e.preventDefault();
 
-      if (alreadyAuthenticated) {
-          return;
-      }
-
-      const formData = new FormData(e.target);
+      const formData = new FormData(registerForm);
       const data = Object.fromEntries(formData.entries());
+      const submitBtn = registerForm.querySelector('button[type="submit"]');
 
-      const errorDiv = document.getElementById('error-message');
-      const successDiv = document.getElementById('success-message');
-      const submitBtn = e.target.querySelector('button[type="submit"]');
-
-      errorDiv.classList.add('d-none');
-      successDiv.classList.add('d-none');
-      errorDiv.textContent = '';
-      successDiv.textContent = '';
+      showMessage(null, "");
 
       if (data.password !== data.password_confirm) {
-          errorDiv.textContent = 'Les mots de passe ne correspondent pas';
-          errorDiv.classList.remove('d-none');
-          return;
+        showMessage("error", "Les mots de passe ne correspondent pas.");
+        return;
       }
 
       submitBtn.disabled = true;
       submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Création...';
 
       try {
-          const response = await fetch('/api/auth/register/', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: {
-                  'Content-Type': 'application/json',
-                  'X-CSRFToken': getCookie('csrftoken'),
-                  'X-Requested-With': 'XMLHttpRequest'
-              },
-              body: JSON.stringify(data)
-          });
+        const response = await fetch("/api/auth/register/", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+            "X-Requested-With": "XMLHttpRequest"
+          },
+          body: JSON.stringify(data)
+        });
 
-          const result = await response.json();
+        let result = {};
+        const contentType = response.headers.get("content-type") || "";
 
-          if (response.ok) {
-              successDiv.textContent = result.message || 'Compte créé avec succès !';
-              successDiv.classList.remove('d-none');
+        if (contentType.includes("application/json")) {
+          result = await response.json();
+        } else {
+          result = {
+            error: "Réponse invalide du serveur."
+          };
+        }
 
-              setTimeout(() => {
-                  window.location.href = '/login/';
-              }, 1500);
-              return;
-          }
+        if (response.ok) {
+          showMessage("success", result.message || "Compte créé avec succès !");
+          setTimeout(() => {
+            window.location.href = "{% url 'sdau:login' %}";
+          }, 1200);
+          return;
+        }
 
-          errorDiv.textContent = result.error || 'Erreur lors de la création du compte';
-          errorDiv.classList.remove('d-none');
-
+        showMessage("error", result.error || "Erreur lors de la création du compte.");
       } catch (error) {
-          errorDiv.textContent = 'Erreur de connexion au serveur';
-          errorDiv.classList.remove('d-none');
+        console.error("Erreur inscription :", error);
+        showMessage("error", "Erreur de connexion au serveur.");
       } finally {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Créer le compte';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i class="fas fa-user-plus me-2"></i>Créer le compte';
       }
+    });
   });
 </script>
 {% endblock %}
